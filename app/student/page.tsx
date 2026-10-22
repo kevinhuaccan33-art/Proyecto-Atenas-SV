@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import {
+  Award,
   CheckCircle2,
   ChevronRight,
   Database,
@@ -370,6 +371,17 @@ export default function StudentPage() {
   const [prototypeEvidenceUrl, setPrototypeEvidenceUrl] = useState("");
   const [stage4Comment, setStage4Comment] = useState("");
 
+  // Etapa 5
+  const [finalSummary, setFinalSummary] = useState("");
+  const [finalDemoUrl, setFinalDemoUrl] = useState("");
+  const [finalTests, setFinalTests] = useState("");
+  const [finalResults, setFinalResults] = useState("");
+  const [finalConclusions, setFinalConclusions] = useState("");
+  const [presentationUrl, setPresentationUrl] = useState("");
+  const [finalEvidencePath, setFinalEvidencePath] = useState("");
+  const [finalEvidenceUrl, setFinalEvidenceUrl] = useState("");
+  const [stage5Comment, setStage5Comment] = useState("");
+
   const stage1 = useMemo(
     () => works.find((work) => work.stage_id === 1) ?? null,
     [works]
@@ -386,6 +398,10 @@ export default function StudentPage() {
     () => works.find((work) => work.stage_id === 4) ?? null,
     [works]
   );
+  const stage5 = useMemo(
+    () => works.find((work) => work.stage_id === 5) ?? null,
+    [works]
+  );
 
   const grade = useMemo(
     () =>
@@ -396,6 +412,52 @@ export default function StudentPage() {
   );
 
   const progress = Math.round(grade * 5 * 10) / 10;
+
+  const lastApprovedStage = useMemo(() => {
+    const ids = works
+      .filter((work) => work.status === "approved")
+      .map((work) => work.stage_id);
+
+    return ids.length ? Math.max(...ids) : 0;
+  }, [works]);
+
+  const celebration =
+    lastApprovedStage === 1
+      ? {
+          emoji: "🎉",
+          title: "¡Identidad aprobada!",
+          text: "Ya tienen nombre, integrantes y logo oficial. Su proyecto alcanzó el primer gran hito.",
+          milestone: "20%",
+        }
+      : lastApprovedStage === 2
+      ? {
+          emoji: "🚀",
+          title: "¡Canvas aprobado!",
+          text: "La idea está bien estructurada y ya puede avanzar hacia los datos y contenidos.",
+          milestone: "40%",
+        }
+      : lastApprovedStage === 3
+      ? {
+          emoji: "📚",
+          title: "¡Datos validados!",
+          text: "El dataset o contenido fue aprobado. Ahora toca demostrar el prototipo funcionando.",
+          milestone: "60%",
+        }
+      : lastApprovedStage === 4
+      ? {
+          emoji: "🤖",
+          title: "¡Prototipo aprobado!",
+          text: "La solución ya funciona. Solo falta preparar la versión final, pruebas y presentación.",
+          milestone: "80%",
+        }
+      : lastApprovedStage === 5
+      ? {
+          emoji: "🌟",
+          title: "¡Proyecto final aprobado!",
+          text: "Las cinco etapas académicas están aprobadas. Falta únicamente la validación final del profesor para emitir el diploma.",
+          milestone: "100%",
+        }
+      : null;
 
   useEffect(() => {
     let mounted = true;
@@ -661,6 +723,32 @@ export default function StudentPage() {
         evidencePath ? await createFileUrl(evidencePath) : ""
       );
       setStage4Comment(prototypeStage?.student_comment ?? "");
+
+      const finalStage = loadedWorks.find(
+        (work) => work.stage_id === 5
+      );
+      const finalContent =
+        finalStage?.content &&
+        typeof finalStage.content === "object"
+          ? finalStage.content
+          : {};
+
+      setFinalSummary(String(finalContent.final_summary ?? ""));
+      setFinalDemoUrl(String(finalContent.final_demo_url ?? ""));
+      setFinalTests(String(finalContent.tests_performed ?? ""));
+      setFinalResults(String(finalContent.test_results ?? ""));
+      setFinalConclusions(String(finalContent.conclusions ?? ""));
+      setPresentationUrl(String(finalContent.presentation_url ?? ""));
+
+      const finalPath = String(
+        finalContent.final_evidence_path ?? ""
+      );
+
+      setFinalEvidencePath(finalPath);
+      setFinalEvidenceUrl(
+        finalPath ? await createFileUrl(finalPath) : ""
+      );
+      setStage5Comment(finalStage?.student_comment ?? "");
     } catch (error) {
       console.error("Error cargando grupo:", error);
       setMessage(
@@ -839,6 +927,62 @@ export default function StudentPage() {
         error instanceof Error
           ? error.message
           : "No se pudo subir la evidencia."
+      );
+    } finally {
+      setUploadingStage(null);
+      event.target.value = "";
+    }
+  }
+
+  async function uploadFinalEvidence(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+    if (!file || !group) return;
+
+    setMessage("");
+
+    const allowed = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!allowed.includes(file.type)) {
+      setMessage(
+        "La evidencia final debe ser PNG, JPG, WebP o PDF."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage(
+        "La evidencia final no puede superar 10 MB."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setUploadingStage(5);
+
+    try {
+      const path = await uploadStageFile(file, 5);
+      setFinalEvidencePath(path);
+
+      if (file.type === "application/pdf") {
+        setFinalEvidenceUrl(await createFileUrl(path));
+      } else {
+        setFinalEvidenceUrl(URL.createObjectURL(file));
+      }
+
+      setMessage("Evidencia final cargada correctamente.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo subir la evidencia final."
       );
     } finally {
       setUploadingStage(null);
@@ -1130,6 +1274,68 @@ export default function StudentPage() {
     );
   }
 
+  async function saveStage5(submit: boolean) {
+    if (!stage5 || !editable(stage5)) {
+      setMessage("La Etapa 5 está bloqueada.");
+      return;
+    }
+
+    const fields = [
+      ["Resumen final del proyecto", finalSummary],
+      ["Pruebas realizadas", finalTests],
+      ["Resultados de las pruebas", finalResults],
+      ["Conclusiones", finalConclusions],
+    ];
+
+    if (submit) {
+      const missing = fields.find(([, value]) => !value.trim());
+
+      if (missing) {
+        setMessage(`Falta completar: ${missing[0]}.`);
+        return;
+      }
+
+      for (const [label, value] of [
+        ["Enlace final / demo", finalDemoUrl],
+        ["Presentación final", presentationUrl],
+      ]) {
+        try {
+          const parsed = new URL(value.trim());
+
+          if (!["https:", "http:"].includes(parsed.protocol)) {
+            throw new Error("invalid");
+          }
+        } catch {
+          setMessage(`${label}: coloca un enlace válido.`);
+          return;
+        }
+      }
+
+      if (
+        !window.confirm(
+          "¿Enviar la Etapa 5 al profesor? Esta es la entrega final y quedará bloqueada mientras se revisa."
+        )
+      ) {
+        return;
+      }
+    }
+
+    await updateStage(
+      5,
+      {
+        final_summary: finalSummary.trim(),
+        final_demo_url: finalDemoUrl.trim(),
+        tests_performed: finalTests.trim(),
+        test_results: finalResults.trim(),
+        conclusions: finalConclusions.trim(),
+        presentation_url: presentationUrl.trim(),
+        final_evidence_path: finalEvidencePath,
+      },
+      stage5Comment,
+      submit
+    );
+  }
+
   async function logout() {
     const supabase = await getSupabase();
     await supabase.auth.signOut();
@@ -1322,6 +1528,63 @@ export default function StudentPage() {
           >
             {message}
           </button>
+        )}
+
+        {celebration && (
+          <section
+            style={{
+              marginBottom: 24,
+              borderRadius: 24,
+              padding: 24,
+              background:
+                lastApprovedStage === 5
+                  ? "linear-gradient(135deg,#fff7d6,#f4e7ff)"
+                  : "linear-gradient(135deg,#f0fdf4,#eef2ff)",
+              border: "1px solid #dbeafe",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "center",
+              }}
+            >
+              <div style={{ fontSize: 42 }}>
+                {celebration.emoji}
+              </div>
+
+              <div>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: 19,
+                    marginBottom: 5,
+                  }}
+                >
+                  {celebration.title}
+                </strong>
+
+                <p
+                  style={{
+                    margin: "0 0 6px",
+                    color: "#4b5563",
+                  }}
+                >
+                  {celebration.text}
+                </p>
+
+                <small
+                  style={{
+                    fontWeight: 800,
+                    color: "#4338ca",
+                  }}
+                >
+                  Hito del curso: {celebration.milestone}
+                </small>
+              </div>
+            </div>
+          </section>
         )}
 
         <section
@@ -1674,7 +1937,7 @@ export default function StudentPage() {
                         marginBottom: 8,
                       }}
                     >
-                      8. Esquema del proyecto
+                      8. Esquema / flyer del proyecto
                     </strong>
 
                     <div
@@ -2310,88 +2573,308 @@ export default function StudentPage() {
           </section>
         )}
 
-        <section
-          style={{
-            background: "white",
-            borderRadius: 24,
-            padding: 26,
-          }}
-        >
-          <h2>Próximas etapas</h2>
+        {stage5 && (
+          <section
+            style={{
+              background: "white",
+              borderRadius: 24,
+              padding: 30,
+              marginBottom: 24,
+              opacity: stage5.status === "locked" ? 0.72 : 1,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 15,
+                flexWrap: "wrap",
+                marginBottom: 24,
+              }}
+            >
+              <div>
+                <small style={{ color: "#e05c77", fontWeight: 800 }}>
+                  ETAPA 5 · 4 PUNTOS
+                </small>
+                <h2>Proyecto final, pruebas y presentación</h2>
+                <p style={{ color: "#6b7280" }}>
+                  Entrega la versión final, documenta las pruebas y
+                  presenta las conclusiones del proyecto.
+                </p>
+              </div>
+              <StatusPill status={stage5.status} />
+            </div>
 
-          <div style={{ display: "grid", gap: 12 }}>
-            {stages
-              .filter((stage) => stage.id >= 5)
-              .map((stage) => {
-                const work =
-                  works.find((item) => item.stage_id === stage.id) ??
-                  null;
-                const status: StageStatus = work?.status ?? "locked";
-                const info = STATUS_DATA[status];
+            {stage5.status === "locked" ? (
+              <LockedNotice previous={4} />
+            ) : (
+              <>
+                <TeacherComment work={stage5} />
 
-                return (
-                  <article
-                    key={stage.id}
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 17,
-                      padding: 17,
-                      display: "flex",
-                      gap: 14,
-                      alignItems: "center",
-                    }}
-                  >
+                <form
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                    event.preventDefault();
+                    saveStage5(false);
+                  }}
+                  style={{ display: "grid", gap: 20 }}
+                >
+                  <TextAreaField
+                    label="1. Resumen final del proyecto"
+                    value={finalSummary}
+                    onChange={setFinalSummary}
+                    disabled={!editable(stage5)}
+                    placeholder="Explica brevemente qué construyeron y cuál es el resultado final."
+                  />
+
+                  <TextField
+                    label="2. Enlace final o demostración"
+                    value={finalDemoUrl}
+                    onChange={setFinalDemoUrl}
+                    disabled={!editable(stage5)}
+                    type="url"
+                    placeholder="Web, aplicación, GitHub, Drive, video de demostración, etc."
+                  />
+
+                  {finalDemoUrl && (
+                    <a
+                      href={finalDemoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        color: "#4338ca",
+                        fontWeight: 700,
+                        width: "fit-content",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <LinkIcon size={16} />
+                      Abrir versión final
+                    </a>
+                  )}
+
+                  <TextAreaField
+                    label="3. Pruebas realizadas"
+                    value={finalTests}
+                    onChange={setFinalTests}
+                    disabled={!editable(stage5)}
+                    placeholder="¿Qué pruebas hicieron? Describe casos, usuarios o situaciones evaluadas."
+                  />
+
+                  <TextAreaField
+                    label="4. Resultados de las pruebas"
+                    value={finalResults}
+                    onChange={setFinalResults}
+                    disabled={!editable(stage5)}
+                    placeholder="¿Qué funcionó, qué falló y qué corrigieron?"
+                  />
+
+                  <TextAreaField
+                    label="5. Conclusiones"
+                    value={finalConclusions}
+                    onChange={setFinalConclusions}
+                    disabled={!editable(stage5)}
+                    placeholder="¿Qué aprendieron, qué logró el proyecto y cuáles son sus límites finales?"
+                  />
+
+                  <TextField
+                    label="6. Enlace a la presentación final"
+                    value={presentationUrl}
+                    onChange={setPresentationUrl}
+                    disabled={!editable(stage5)}
+                    type="url"
+                    placeholder="Canva, Google Slides, Drive, PDF compartido..."
+                  />
+
+                  {presentationUrl && (
+                    <a
+                      href={presentationUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        color: "#4338ca",
+                        fontWeight: 700,
+                        width: "fit-content",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <LinkIcon size={16} />
+                      Abrir presentación
+                    </a>
+                  )}
+
+                  <div>
+                    <strong
+                      style={{
+                        display: "block",
+                        marginBottom: 8,
+                      }}
+                    >
+                      7. Evidencia final adicional
+                    </strong>
+
                     <div
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 13,
-                        display: "grid",
-                        placeItems: "center",
-                        background: info.background,
+                        border: "1px dashed #c7c9d4",
+                        borderRadius: 17,
+                        padding: 18,
                       }}
                     >
-                      {status === "locked" ? (
-                        <Lock size={19} />
-                      ) : status === "correction_required" ? (
-                        <RefreshCw size={19} />
-                      ) : (
-                        <ChevronRight size={19} />
+                      {finalEvidencePath && (
+                        <div
+                          style={{
+                            background: "#ecfdf5",
+                            color: "#047857",
+                            padding: 12,
+                            borderRadius: 12,
+                            marginBottom: 12,
+                          }}
+                        >
+                          ✅ Evidencia final cargada
+                          {finalEvidenceUrl && (
+                            <>
+                              {" · "}
+                              <a
+                                href={finalEvidenceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  color: "#4338ca",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Ver evidencia
+                              </a>
+                            </>
+                          )}
+                        </div>
                       )}
-                    </div>
 
-                    <div style={{ flex: 1 }}>
-                      <strong>
-                        Etapa {stage.id} · {stage.name}
-                      </strong>
-                      <p
+                      <label
                         style={{
-                          margin: "4px 0 0",
-                          color: "#6b7280",
-                          fontSize: 13,
+                          cursor: editable(stage5)
+                            ? "pointer"
+                            : "not-allowed",
                         }}
                       >
-                        {stage.description}
-                      </p>
-                    </div>
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,application/pdf"
+                          disabled={
+                            !editable(stage5) || uploadingStage === 5
+                          }
+                          onChange={uploadFinalEvidence}
+                        />
 
-                    <span
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            border: "1px solid #d1d5db",
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                          }}
+                        >
+                          <Upload size={17} />
+                          {uploadingStage === 5
+                            ? "Subiendo..."
+                            : finalEvidencePath
+                            ? "Cambiar evidencia"
+                            : "Subir evidencia"}
+                        </span>
+                      </label>
+
+                      <small
+                        style={{
+                          display: "block",
+                          color: "#6b7280",
+                          marginTop: 8,
+                        }}
+                      >
+                        Opcional · PNG, JPG, WebP o PDF · máximo 10 MB.
+                      </small>
+                    </div>
+                  </div>
+
+                  <TextAreaField
+                    label="Comentario final para el profesor"
+                    value={stage5Comment}
+                    onChange={setStage5Comment}
+                    disabled={!editable(stage5)}
+                    placeholder="Comentario opcional sobre la entrega final."
+                    rows={3}
+                  />
+
+                  {editable(stage5) ? (
+                    <div
                       style={{
-                        borderRadius: 999,
-                        padding: "6px 10px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        background: info.background,
-                        color: info.color,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 10,
+                        flexWrap: "wrap",
                       }}
                     >
-                      {info.icon} {info.label}
-                    </span>
-                  </article>
-                );
-              })}
-          </div>
-        </section>
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={
+                          savingStage === 5 || uploadingStage === 5
+                        }
+                      >
+                        <FileText size={17} />
+                        Guardar borrador
+                      </Button>
+
+                      <Button
+                        type="button"
+                        disabled={
+                          savingStage === 5 || uploadingStage === 5
+                        }
+                        onClick={() => saveStage5(true)}
+                      >
+                        <Send size={17} />
+                        Enviar proyecto final
+                      </Button>
+                    </div>
+                  ) : (
+                    <FrozenNotice
+                      work={stage5}
+                      approvedMessage="Etapa 5 aprobada"
+                    />
+                  )}
+                </form>
+              </>
+            )}
+          </section>
+        )}
+
+        {stage5?.status === "approved" &&
+          !group.completion_approved && (
+            <section
+              style={{
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+                borderRadius: 24,
+                padding: 24,
+                marginBottom: 24,
+                textAlign: "center",
+              }}
+            >
+              <Award size={38} />
+              <h2 style={{ marginBottom: 6 }}>
+                Todas las etapas están aprobadas
+              </h2>
+              <p style={{ color: "#6b7280", marginBottom: 0 }}>
+                El diploma todavía no ha sido emitido. El profesor
+                debe autorizar manualmente la culminación final.
+              </p>
+            </section>
+          )}
 
         {group.completion_approved && (
           <section
@@ -2404,17 +2887,51 @@ export default function StudentPage() {
                 "linear-gradient(135deg,#fff7d6,#f4e7ff)",
             }}
           >
-            <div style={{ fontSize: 54 }}>🏆</div>
-            <h2>¡Proyecto completado!</h2>
-            <p>
-              Alcanzaron el 100 % y el profesor aprobó oficialmente
-              la culminación.
+            <div style={{ fontSize: 54 }}>🎓</div>
+
+            <small
+              style={{
+                display: "block",
+                fontWeight: 800,
+                letterSpacing: 1.2,
+                color: "#7c3aed",
+                marginBottom: 8,
+              }}
+            >
+              DIPLOMA DE CULMINACIÓN
+            </small>
+
+            <h2 style={{ marginBottom: 8 }}>
+              ¡Proyecto completado oficialmente!
+            </h2>
+
+            <p style={{ fontSize: 17 }}>
+              Se reconoce a <strong>{group.members}</strong> por la
+              culminación satisfactoria del proyecto{" "}
+              <strong>
+                {group.project_name || "de Inteligencia Artificial"}
+              </strong>{" "}
+              en Inteligencia Artificial II.
             </p>
+
+            <p>
+              Calificación final: <strong>{grade}/20</strong>
+            </p>
+
             {group.diploma_code && (
-              <small>
+              <div
+                style={{
+                  marginTop: 18,
+                  display: "inline-block",
+                  background: "white",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: "10px 16px",
+                }}
+              >
                 Código de diploma:{" "}
                 <strong>{group.diploma_code}</strong>
-              </small>
+              </div>
             )}
           </section>
         )}
