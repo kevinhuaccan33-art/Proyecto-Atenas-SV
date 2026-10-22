@@ -967,6 +967,97 @@ export default function HomePage() {
     }
   }
 
+  function downloadGeneratedCredentials() {
+    if (!generatedCredentials.length) {
+      setNotice(
+        "Primero crea o regenera al menos una contraseña."
+      );
+      return;
+    }
+
+    const escapeCsv = (value: unknown) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const rows = [
+      [
+        "Grupo",
+        "Integrantes",
+        "Usuario",
+        "Contraseña",
+        "Estado",
+      ],
+      ...generatedCredentials.map(
+        (credential) => {
+          const group =
+            groups.find(
+              (item) =>
+                item.id ===
+                credential.group_id
+            ) ?? null;
+
+          const account =
+            studentAccounts.find(
+              (item) =>
+                Number(
+                  item.group_id
+                ) ===
+                credential.group_id
+            ) ?? null;
+
+          return [
+            `Grupo ${credential.group_id}`,
+            group?.members ?? "",
+            credential.username,
+            credential.password,
+            account?.active
+              ? "Activa"
+              : "Pendiente / inactiva",
+          ];
+        }
+      ),
+    ];
+
+    const csv =
+      "\uFEFF" +
+      rows
+        .map((row) =>
+          row
+            .map(escapeCsv)
+            .join(";")
+        )
+        .join("\r\n");
+
+    const blob =
+      new Blob(
+        [csv],
+        {
+          type: "text/csv;charset=utf-8;",
+        }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+    link.download =
+      `Credenciales_Atenas_IA_${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+    setNotice(
+      "📥 Archivo de credenciales descargado. Guárdalo en un lugar seguro."
+    );
+  }
+
   async function toggleGroup(group: AtenasGroup) {
     setChangingGroup(group.id);
     setNotice("");
@@ -2349,7 +2440,14 @@ export default function HomePage() {
                       </small>
                     </div>
 
-                    <Button
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Button
                       type="button"
                       variant="outline"
                       onClick={
@@ -2359,6 +2457,17 @@ export default function HomePage() {
                       <Copy size={16} />
                       Copiar todas
                     </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={
+                          downloadGeneratedCredentials
+                        }
+                      >
+                        📥 Descargar credenciales
+                      </Button>
+                    </div>
                   </div>
 
                   <div
