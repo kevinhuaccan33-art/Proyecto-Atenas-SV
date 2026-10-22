@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import {
   Bell,
@@ -22,7 +27,6 @@ import { Progress } from "@/components/ui/progress";
 
 import {
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
@@ -65,7 +69,7 @@ type StageWork = {
   stage_id: number;
   status: StageStatus;
   score: number | string;
-  content: Record<string, unknown>;
+  content: Record<string, any>;
   evidence_url: string | null;
   student_comment: string;
   teacher_comment: string;
@@ -134,7 +138,7 @@ const STATUS_INFO: Record<
 
   correction_required: {
     icon: "🔄",
-    label: "Corrección",
+    label: "Corrección solicitada",
   },
 
   approved: {
@@ -149,16 +153,20 @@ const STATUS_INFO: Record<
 };
 
 
-function numberValue(value: number | string | null | undefined) {
-  const result = Number(value ?? 0);
+function numeric(
+  value: number | string | null | undefined
+) {
+  const number = Number(value ?? 0);
 
-  return Number.isFinite(result)
-    ? result
+  return Number.isFinite(number)
+    ? number
     : 0;
 }
 
 
-function formatDate(value: string | null) {
+function formatDate(
+  value: string | null
+) {
   if (!value) {
     return "";
   }
@@ -184,39 +192,30 @@ function buildGroup(
   allWork: StageWork[]
 ): AtenasGroup {
 
-  const stageWorks = allWork
-    .filter(
-      work =>
-        work.group_id === group.id
-    )
-    .sort(
-      (a, b) =>
-        a.stage_id - b.stage_id
-    );
+  const stageWorks =
+    allWork
+      .filter(
+        work =>
+          work.group_id === group.id
+      )
+      .sort(
+        (a, b) =>
+          a.stage_id - b.stage_id
+      );
 
 
-  /*
-    IMPORTANTE:
-
-    Solo sumamos puntos de etapas APROBADAS.
-
-    Por ejemplo:
-    3.5 + 4 + 2 = 9.5 / 20
-
-    progreso = 9.5 × 5 = 47.5 %
-  */
-
-  const grade = stageWorks
-    .filter(
-      work =>
-        work.status === "approved"
-    )
-    .reduce(
-      (total, work) =>
-        total +
-        numberValue(work.score),
-      0
-    );
+  const grade =
+    stageWorks
+      .filter(
+        work =>
+          work.status === "approved"
+      )
+      .reduce(
+        (total, work) =>
+          total +
+          numeric(work.score),
+        0
+      );
 
 
   const pendingReviews =
@@ -302,7 +301,7 @@ function GroupCard({
   const colors =
     CARD_COLORS[
       (group.id - 1) %
-        CARD_COLORS.length
+      CARD_COLORS.length
     ];
 
 
@@ -360,6 +359,7 @@ function GroupCard({
 
 
   return (
+
     <article
       className="project-card"
       style={
@@ -373,8 +373,9 @@ function GroupCard({
           opacity:
             group.active
               ? 1
-              : 0.68,
-        } as React.CSSProperties
+              : 0.66,
+
+        } as CSSProperties
       }
     >
 
@@ -382,11 +383,15 @@ function GroupCard({
 
         <div className="project-icon">
 
-          {group.completion_approved
-            ? "🏆"
-            : group.active
-            ? "🤖"
-            : "🔒"}
+          {
+            group.completion_approved
+              ? "🏆"
+              : group.pendingReviews > 0
+              ? "🟡"
+              : group.active
+              ? "🤖"
+              : "🔒"
+          }
 
         </div>
 
@@ -446,7 +451,9 @@ function GroupCard({
 
 
         <Progress
-          value={group.progress}
+          value={
+            group.progress
+          }
           className="project-progress"
         />
 
@@ -464,23 +471,15 @@ function GroupCard({
       >
 
         <span>
-
           ✅ {group.approvedStages}/5
-
         </span>
 
-
         <span>
-
           🟡 {group.pendingReviews} revisión
-
         </span>
 
-
         <span>
-
           🔄 {group.corrections} corrección
-
         </span>
 
       </div>
@@ -500,9 +499,11 @@ function GroupCard({
           }
         >
 
-          {group.active
-            ? "Deshabilitar"
-            : "Habilitar"}
+          {
+            group.active
+              ? "Deshabilitar"
+              : "Habilitar"
+          }
 
         </Button>
 
@@ -523,17 +524,24 @@ function GroupCard({
       </div>
 
     </article>
+
   );
 }
 
 
 export default function HomePage() {
 
-  const [groups, setGroups] =
+  const [
+    groups,
+    setGroups,
+  ] =
     useState<AtenasGroup[]>([]);
 
 
-  const [stages, setStages] =
+  const [
+    stages,
+    setStages,
+  ] =
     useState<StageDefinition[]>([]);
 
 
@@ -544,11 +552,17 @@ export default function HomePage() {
     useState<number | null>(null);
 
 
-  const [query, setQuery] =
+  const [
+    query,
+    setQuery,
+  ] =
     useState("");
 
 
-  const [filter, setFilter] =
+  const [
+    filter,
+    setFilter,
+  ] =
     useState("todos");
 
 
@@ -573,7 +587,10 @@ export default function HomePage() {
     useState("Profesor Kevin");
 
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
 
@@ -584,7 +601,31 @@ export default function HomePage() {
     useState<number | null>(null);
 
 
-  const [notice, setNotice] =
+  const [
+    reviewingStage,
+    setReviewingStage,
+  ] =
+    useState<number | null>(null);
+
+
+  const [
+    reviewScores,
+    setReviewScores,
+  ] =
+    useState<Record<number, string>>({});
+
+
+  const [
+    reviewComments,
+    setReviewComments,
+  ] =
+    useState<Record<number, string>>({});
+
+
+  const [
+    notice,
+    setNotice,
+  ] =
     useState("");
 
 
@@ -723,7 +764,7 @@ export default function HomePage() {
 
 
   // ============================================================
-  // CARGAR DATOS REALES DE SUPABASE
+  // CARGAR PANEL
   // ============================================================
 
   async function loadDashboard() {
@@ -840,18 +881,24 @@ export default function HomePage() {
 
 
       const rawGroups =
-        (groupsResult.data ??
-          []) as GroupRow[];
+        (
+          groupsResult.data ??
+          []
+        ) as GroupRow[];
 
 
       const rawStages =
-        (stagesResult.data ??
-          []) as StageDefinition[];
+        (
+          stagesResult.data ??
+          []
+        ) as StageDefinition[];
 
 
       const rawWork =
-        (workResult.data ??
-          []) as StageWork[];
+        (
+          workResult.data ??
+          []
+        ) as StageWork[];
 
 
       setStages(
@@ -879,7 +926,7 @@ export default function HomePage() {
 
 
       setNotice(
-        "No se pudieron cargar los grupos desde Supabase."
+        "No se pudieron cargar los datos desde Supabase."
       );
 
 
@@ -916,7 +963,6 @@ export default function HomePage() {
       group.id
     );
 
-
     setNotice("");
 
 
@@ -949,9 +995,7 @@ export default function HomePage() {
       setNotice(
 
         !group.active
-
           ? `Grupo ${group.id} habilitado.`
-
           : `Grupo ${group.id} deshabilitado.`
 
       );
@@ -975,6 +1019,293 @@ export default function HomePage() {
     } finally {
 
       setChangingGroup(
+        null
+      );
+
+    }
+
+  }
+
+
+  // ============================================================
+  // EVALUAR ETAPA
+  // ============================================================
+
+  async function reviewStage(
+    groupId: number,
+    work: StageWork,
+    action:
+      | "approved"
+      | "correction_required"
+      | "rejected"
+  ) {
+
+    const stageId =
+      work.stage_id;
+
+
+    const comment =
+      (
+        reviewComments[
+          stageId
+        ] ??
+        work.teacher_comment ??
+        ""
+      ).trim();
+
+
+    const score =
+      Number(
+        reviewScores[
+          stageId
+        ] ??
+        numeric(
+          work.score
+        )
+      );
+
+
+    if (
+      action === "approved" &&
+      (
+        !Number.isFinite(score) ||
+        score < 0 ||
+        score > 4
+      )
+    ) {
+
+      setNotice(
+        "La nota debe estar entre 0 y 4 puntos."
+      );
+
+      return;
+
+    }
+
+
+    if (
+      (
+        action === "correction_required" ||
+        action === "rejected"
+      ) &&
+      !comment
+    ) {
+
+      setNotice(
+        "Escribe un comentario explicando al estudiante qué debe corregir o por qué fue rechazado."
+      );
+
+      return;
+
+    }
+
+
+    let confirmation =
+      "";
+
+
+    if (
+      action === "approved"
+    ) {
+
+      confirmation =
+        `¿Aprobar esta etapa con ${score}/4 puntos?`;
+
+    }
+
+
+    if (
+      action === "correction_required"
+    ) {
+
+      confirmation =
+        "¿Solicitar corrección? El estudiante podrá editar nuevamente esta etapa.";
+
+    }
+
+
+    if (
+      action === "rejected"
+    ) {
+
+      confirmation =
+        "¿Rechazar esta entrega?";
+
+    }
+
+
+    if (
+      !window.confirm(
+        confirmation
+      )
+    ) {
+      return;
+    }
+
+
+    setReviewingStage(
+      stageId
+    );
+
+    setNotice("");
+
+
+    try {
+
+      const supabase =
+        await getSupabase();
+
+
+      const payload: Record<
+        string,
+        any
+      > = {
+
+        status:
+          action,
+
+        teacher_comment:
+          comment,
+
+      };
+
+
+      if (
+        action === "approved"
+      ) {
+
+        payload.score =
+          score;
+
+      }
+
+
+      if (
+        action === "rejected"
+      ) {
+
+        payload.score =
+          0;
+
+      }
+
+
+      const {
+        error,
+      } =
+        await supabase
+          .from(
+            "group_stage_work"
+          )
+          .update(
+            payload
+          )
+          .eq(
+            "group_id",
+            groupId
+          )
+          .eq(
+            "stage_id",
+            stageId
+          );
+
+
+      if (error) {
+        throw error;
+      }
+
+
+      if (
+        action === "approved"
+      ) {
+
+        setNotice(
+          `Etapa ${stageId} aprobada con ${score}/4 puntos.`
+        );
+
+      }
+
+
+      if (
+        action ===
+        "correction_required"
+      ) {
+
+        setNotice(
+          `Se solicitó corrección en la Etapa ${stageId}.`
+        );
+
+      }
+
+
+      if (
+        action === "rejected"
+      ) {
+
+        setNotice(
+          `Etapa ${stageId} rechazada.`
+        );
+
+      }
+
+
+      setReviewScores(
+        current => {
+
+          const copy = {
+            ...current,
+          };
+
+          delete copy[
+            stageId
+          ];
+
+          return copy;
+
+        }
+      );
+
+
+      setReviewComments(
+        current => {
+
+          const copy = {
+            ...current,
+          };
+
+          delete copy[
+            stageId
+          ];
+
+          return copy;
+
+        }
+      );
+
+
+      await loadDashboard();
+
+
+    } catch (error) {
+
+      console.error(
+        "Error evaluando:",
+        error
+      );
+
+
+      setNotice(
+
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la evaluación."
+
+      );
+
+
+    } finally {
+
+      setReviewingStage(
         null
       );
 
@@ -1128,7 +1459,7 @@ export default function HomePage() {
 
 
   // ============================================================
-  // PANTALLA DE CARGA
+  // ESPERA AUTENTICACIÓN
   // ============================================================
 
   if (!authReady) {
@@ -1141,7 +1472,7 @@ export default function HomePage() {
           display: "grid",
           placeItems: "center",
           background:
-            "linear-gradient(135deg, #f5f7ff 0%, #eef9f7 100%)",
+            "linear-gradient(135deg,#f5f7ff,#eef9f7)",
           fontFamily:
             "Arial, sans-serif",
         }}
@@ -1150,7 +1481,6 @@ export default function HomePage() {
         <div
           style={{
             textAlign: "center",
-            color: "#4b5563",
           }}
         >
 
@@ -1158,13 +1488,10 @@ export default function HomePage() {
             style={{
               display: "block",
               fontSize: 24,
-              color: "#1f2937",
-              marginBottom: 10,
+              marginBottom: 8,
             }}
           >
-
             Atenas IA Lab
-
           </strong>
 
           Verificando acceso...
@@ -1178,16 +1505,14 @@ export default function HomePage() {
   }
 
 
-  // ============================================================
-  // PANEL ADMIN
-  // ============================================================
-
   return (
 
     <main className="app-shell">
 
 
-      {/* SIDEBAR */}
+      {/* ===================================================== */}
+      {/* MENÚ LATERAL */}
+      {/* ===================================================== */}
 
       <aside
         className={
@@ -1200,9 +1525,7 @@ export default function HomePage() {
         <div className="brand">
 
           <span className="brand-mark">
-
             <Sparkles />
-
           </span>
 
 
@@ -1235,9 +1558,7 @@ export default function HomePage() {
         </button>
 
 
-        <nav
-          aria-label="Navegación principal"
-        >
+        <nav>
 
           <button className="nav-item active">
 
@@ -1259,9 +1580,7 @@ export default function HomePage() {
             </span>
 
             <span className="nav-count">
-
               {groups.length}
-
             </span>
 
           </button>
@@ -1310,12 +1629,12 @@ export default function HomePage() {
           </span>
 
           <strong>
-            Sistema de evaluación
+            Evaluación
           </strong>
 
           <p>
-            5 etapas × 4 puntos =
-            20 puntos.
+            Cada etapa vale hasta
+            4 puntos. Total: 20.
           </p>
 
         </div>
@@ -1339,9 +1658,7 @@ export default function HomePage() {
             </strong>
 
             <small>
-
               Administrador
-
             </small>
 
           </div>
@@ -1351,7 +1668,9 @@ export default function HomePage() {
       </aside>
 
 
+      {/* ===================================================== */}
       {/* CONTENIDO */}
+      {/* ===================================================== */}
 
       <section className="app-main">
 
@@ -1364,7 +1683,6 @@ export default function HomePage() {
               () =>
                 setMobileNav(true)
             }
-            aria-label="Abrir menú"
           >
 
             <Menu />
@@ -1392,7 +1710,6 @@ export default function HomePage() {
 
           <button
             className="notification"
-            aria-label="Notificaciones"
           >
 
             <Bell />
@@ -1438,20 +1755,15 @@ export default function HomePage() {
 
               <h1>
 
-                ¡Hola, {teacherName}!
-
-                <span>
-                  👋
-                </span>
+                ¡Hola, {teacherName}! 👋
 
               </h1>
 
 
               <p>
 
-                Aquí puedes acompañar,
-                revisar y evaluar el
-                avance real de cada grupo.
+                Revisa, califica y acompaña
+                el avance de cada proyecto.
 
               </p>
 
@@ -1461,14 +1773,12 @@ export default function HomePage() {
             <div className="class-chip">
 
               <span>
-
                 Inteligencia Artificial II
-
               </span>
 
               <strong>
 
-                {groups.length} grupos registrados ·{" "}
+                {groups.length} grupos ·{" "}
                 {activeCount} activos
 
               </strong>
@@ -1487,7 +1797,6 @@ export default function HomePage() {
                   () =>
                     setNotice("")
                 }
-                aria-label="Cerrar mensaje"
               >
 
                 {notice}
@@ -1502,10 +1811,7 @@ export default function HomePage() {
 
           {/* RESUMEN */}
 
-          <section
-            className="summary-grid"
-            aria-label="Resumen general"
-          >
+          <section className="summary-grid">
 
             <article>
 
@@ -1514,7 +1820,6 @@ export default function HomePage() {
                 <FolderKanban />
 
               </span>
-
 
               <div>
 
@@ -1528,11 +1833,8 @@ export default function HomePage() {
 
               </div>
 
-
               <em>
-
-                de {groups.length} disponibles
-
+                de {groups.length}
               </em>
 
             </article>
@@ -1546,7 +1848,6 @@ export default function HomePage() {
 
               </span>
 
-
               <div>
 
                 <small>
@@ -1559,11 +1860,8 @@ export default function HomePage() {
 
               </div>
 
-
               <em>
-
                 Calculado por nota
-
               </em>
 
             </article>
@@ -1577,11 +1875,10 @@ export default function HomePage() {
 
               </span>
 
-
               <div>
 
                 <small>
-                  Por revisar
+                  Entregas por revisar
                 </small>
 
                 <strong>
@@ -1590,11 +1887,8 @@ export default function HomePage() {
 
               </div>
 
-
               <em>
-
-                Entregas pendientes
-
+                Requieren atención
               </em>
 
             </article>
@@ -1602,7 +1896,7 @@ export default function HomePage() {
           </section>
 
 
-          {/* GRUPOS */}
+          {/* FILTROS */}
 
           <Tabs
             value={filter}
@@ -1621,11 +1915,7 @@ export default function HomePage() {
                 </h2>
 
                 <p>
-
-                  El progreso se calcula
-                  automáticamente según
-                  las etapas aprobadas.
-
+                  Abre un grupo para revisar sus cinco etapas.
                 </p>
 
               </div>
@@ -1642,7 +1932,15 @@ export default function HomePage() {
                 </TabsTrigger>
 
                 <TabsTrigger value="revision">
+
                   Revisar
+
+                  {
+                    pendingTotal > 0
+                      ? ` (${pendingTotal})`
+                      : ""
+                  }
+
                 </TabsTrigger>
 
                 <TabsTrigger value="final">
@@ -1653,80 +1951,72 @@ export default function HomePage() {
 
             </div>
 
-
-            <TabsContent value={filter}>
-
-              {
-                loading ? (
-
-                  <div className="empty-state tall">
-
-                    Cargando grupos desde Supabase...
-
-                  </div>
-
-                ) : (
-
-                  <div className="project-grid">
-
-                    {
-                      visibleGroups.map(
-                        group => (
-
-                          <GroupCard
-                            key={
-                              group.id
-                            }
-                            group={
-                              group
-                            }
-                            stages={
-                              stages
-                            }
-                            changing={
-                              changingGroup ===
-                              group.id
-                            }
-                            onOpen={
-                              () =>
-                                setActiveGroupId(
-                                  group.id
-                                )
-                            }
-                            onToggleActive={
-                              () =>
-                                toggleGroup(
-                                  group
-                                )
-                            }
-                          />
-
-                        )
-                      )
-                    }
-
-
-                    {
-                      visibleGroups.length ===
-                        0 && (
-
-                        <div className="empty-state">
-
-                          No hay grupos que coincidan con este filtro.
-
-                        </div>
-
-                      )
-                    }
-
-                  </div>
-
-                )
-              }
-
-            </TabsContent>
-
           </Tabs>
+
+
+          {/* TARJETAS */}
+
+          {
+            loading ? (
+
+              <div className="empty-state tall">
+
+                Cargando grupos...
+
+              </div>
+
+            ) : (
+
+              <div className="project-grid">
+
+                {
+                  visibleGroups.map(
+                    group => (
+
+                      <GroupCard
+                        key={group.id}
+                        group={group}
+                        stages={stages}
+                        changing={
+                          changingGroup ===
+                          group.id
+                        }
+                        onOpen={
+                          () =>
+                            setActiveGroupId(
+                              group.id
+                            )
+                        }
+                        onToggleActive={
+                          () =>
+                            toggleGroup(
+                              group
+                            )
+                        }
+                      />
+
+                    )
+                  )
+                }
+
+
+                {
+                  visibleGroups.length ===
+                    0 && (
+
+                    <div className="empty-state">
+
+                      No hay grupos en este filtro.
+
+                    </div>
+
+                  )
+                }
+
+              </div>
+
+            )
+          }
 
         </div>
 
@@ -1738,7 +2028,6 @@ export default function HomePage() {
 
           <button
             className="nav-backdrop"
-            aria-label="Cerrar menú"
             onClick={
               () =>
                 setMobileNav(false)
@@ -1749,14 +2038,15 @@ export default function HomePage() {
       }
 
 
+      {/* ===================================================== */}
       {/* DETALLE DEL GRUPO */}
+      {/* ===================================================== */}
 
       {
         activeGroup && (
 
           <div
             className="detail-overlay"
-            role="presentation"
             onMouseDown={
               () =>
                 setActiveGroupId(null)
@@ -1767,9 +2057,6 @@ export default function HomePage() {
               className="detail-panel"
               role="dialog"
               aria-modal="true"
-              aria-label={
-                `Detalle del Grupo ${activeGroup.id}`
-              }
               onMouseDown={
                 event =>
                   event.stopPropagation()
@@ -1782,7 +2069,6 @@ export default function HomePage() {
                   () =>
                     setActiveGroupId(null)
                 }
-                aria-label="Cerrar"
               >
 
                 <X />
@@ -1797,23 +2083,28 @@ export default function HomePage() {
                     "--accent":
                       CARD_COLORS[
                         (activeGroup.id - 1) %
-                          CARD_COLORS.length
+                        CARD_COLORS.length
                       ].accent,
 
                     "--soft":
                       CARD_COLORS[
                         (activeGroup.id - 1) %
-                          CARD_COLORS.length
+                        CARD_COLORS.length
                       ].soft,
-                  } as React.CSSProperties
+
+                  } as CSSProperties
                 }
               >
 
                 <span>
 
-                  {activeGroup.completion_approved
-                    ? "🏆"
-                    : "🤖"}
+                  {
+                    activeGroup.pendingReviews > 0
+                      ? "🟡"
+                      : activeGroup.completion_approved
+                      ? "🏆"
+                      : "🤖"
+                  }
 
                 </span>
 
@@ -1821,11 +2112,8 @@ export default function HomePage() {
                 <div>
 
                   <p>
-
                     Grupo {activeGroup.id}
-
                   </p>
-
 
                   <h2>
 
@@ -1836,12 +2124,11 @@ export default function HomePage() {
 
                   </h2>
 
-
                   <small>
 
                     {
                       activeGroup.members ||
-                      "Integrantes aún no definidos"
+                      "Integrantes sin definir"
                     }
 
                   </small>
@@ -1851,16 +2138,15 @@ export default function HomePage() {
               </div>
 
 
+              {/* PROGRESO */}
+
               <div className="detail-progress">
 
                 <div>
 
                   <span>
-
                     Nota y progreso
-
                   </span>
-
 
                   <strong>
 
@@ -1871,7 +2157,6 @@ export default function HomePage() {
 
                 </div>
 
-
                 <Progress
                   value={
                     activeGroup.progress
@@ -1881,72 +2166,7 @@ export default function HomePage() {
               </div>
 
 
-              <div
-                style={{
-                  marginBottom: 20,
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-
-                <span className="stage-pill">
-
-                  {
-                    activeGroup.active
-                      ? "🟢 Grupo activo"
-                      : "⚪ Grupo deshabilitado"
-                  }
-
-                </span>
-
-
-                {
-                  activeGroup.pendingReviews >
-                    0 && (
-
-                    <span className="stage-pill">
-
-                      🟡 {
-                        activeGroup.pendingReviews
-                      } pendiente(s)
-
-                    </span>
-
-                  )
-                }
-
-
-                {
-                  activeGroup.corrections >
-                    0 && (
-
-                    <span className="stage-pill">
-
-                      🔄 {
-                        activeGroup.corrections
-                      } corrección(es)
-
-                    </span>
-
-                  )
-                }
-
-
-                {
-                  activeGroup.completion_approved && (
-
-                    <span className="stage-pill">
-
-                      🏆 Culminación aprobada
-
-                    </span>
-
-                  )
-                }
-
-              </div>
-
+              {/* ETAPAS */}
 
               <div className="stage-list">
 
@@ -1973,100 +2193,464 @@ export default function HomePage() {
                         ];
 
 
-                      const score =
-                        numberValue(
-                          work?.score
-                        );
+                      if (!work) {
+                        return null;
+                      }
 
 
                       return (
 
                         <div
-                          className={
-                            status === "approved"
-                              ? "stage-row done"
-                              : "stage-row"
-                          }
-                          key={
-                            stage.id
-                          }
+                          key={stage.id}
+                          style={{
+                            display: "grid",
+                            gap: 10,
+                            marginBottom: 12,
+                          }}
                         >
 
-                          <span>
-
-                            {
-                              info.icon
-                            }
-
-                          </span>
-
-
                           <div
-                            style={{
-                              flex: 1,
-                            }}
+                            className={
+                              status === "approved"
+                                ? "stage-row done"
+                                : "stage-row"
+                            }
                           >
 
-                            <strong>
+                            <span>
 
-                              Etapa {stage.id} ·{" "}
-                              {stage.name}
+                              {info.icon}
 
-                            </strong>
-
-
-                            <small>
-
-                              {info.label} ·{" "}
-                              {score}/4 puntos
-
-                            </small>
+                            </span>
 
 
-                            {
-                              work?.submitted_at && (
+                            <div
+                              style={{
+                                flex: 1,
+                              }}
+                            >
 
-                                <small
-                                  style={{
-                                    display: "block",
-                                    marginTop: 3,
-                                  }}
-                                >
+                              <strong>
 
-                                  Enviado:{" "}
-                                  {
-                                    formatDate(
-                                      work.submitted_at
-                                    )
-                                  }
+                                Etapa {stage.id} ·{" "}
+                                {stage.name}
 
-                                </small>
-
-                              )
-                            }
+                              </strong>
 
 
-                            {
-                              work?.teacher_comment && (
+                              <small>
 
-                                <small
-                                  style={{
-                                    display: "block",
-                                    marginTop: 5,
-                                  }}
-                                >
+                                {info.label} ·{" "}
+                                {numeric(
+                                  work.score
+                                )}/4 puntos
 
-                                  💬 Profesor:{" "}
-                                  {
-                                    work.teacher_comment
-                                  }
+                              </small>
 
-                                </small>
 
-                              )
-                            }
+                              {
+                                work.submitted_at && (
+
+                                  <small
+                                    style={{
+                                      display: "block",
+                                      marginTop: 4,
+                                    }}
+                                  >
+
+                                    Enviado:{" "}
+                                    {
+                                      formatDate(
+                                        work.submitted_at
+                                      )
+                                    }
+
+                                  </small>
+
+                                )
+                              }
+
+
+                              {
+                                work.student_comment && (
+
+                                  <div
+                                    style={{
+                                      marginTop: 8,
+                                      padding: 10,
+                                      background: "#f8fafc",
+                                      borderRadius: 10,
+                                      fontSize: 13,
+                                    }}
+                                  >
+
+                                    <strong>
+                                      💬 Estudiante:
+                                    </strong>
+
+                                    {" "}
+
+                                    {
+                                      work.student_comment
+                                    }
+
+                                  </div>
+
+                                )
+                              }
+
+
+                              {
+                                work.teacher_comment &&
+                                status !== "submitted" && (
+
+                                  <div
+                                    style={{
+                                      marginTop: 8,
+                                      padding: 10,
+                                      background: "#f3f4f6",
+                                      borderRadius: 10,
+                                      fontSize: 13,
+                                    }}
+                                  >
+
+                                    <strong>
+                                      👨‍🏫 Profesor:
+                                    </strong>
+
+                                    {" "}
+
+                                    {
+                                      work.teacher_comment
+                                    }
+
+                                  </div>
+
+                                )
+                              }
+
+                            </div>
 
                           </div>
+
+
+                          {/* ================================= */}
+                          {/* FORMULARIO DE EVALUACIÓN */}
+                          {/* ================================= */}
+
+                          {
+                            status === "submitted" && (
+
+                              <div
+                                style={{
+                                  border:
+                                    "1px solid #f2d38c",
+                                  background:
+                                    "#fffbeb",
+                                  borderRadius: 16,
+                                  padding: 16,
+                                }}
+                              >
+
+                                <strong
+                                  style={{
+                                    display: "block",
+                                    marginBottom: 5,
+                                    color: "#92400e",
+                                  }}
+                                >
+
+                                  🟡 Entrega esperando revisión
+
+                                </strong>
+
+
+                                <p
+                                  style={{
+                                    fontSize: 13,
+                                    color: "#6b7280",
+                                    margin:
+                                      "0 0 15px",
+                                  }}
+                                >
+
+                                  Evalúa esta etapa.
+                                  Si la apruebas,
+                                  la siguiente se
+                                  desbloqueará
+                                  automáticamente.
+
+                                </p>
+
+
+                                {/* DATOS ETAPA 1 */}
+
+                                {
+                                  stage.id === 1 && (
+
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gap: 8,
+                                        background: "white",
+                                        borderRadius: 12,
+                                        padding: 13,
+                                        marginBottom: 15,
+                                      }}
+                                    >
+
+                                      <div>
+
+                                        <strong>
+                                          Nombre:
+                                        </strong>
+
+                                        {" "}
+
+                                        {
+                                          String(
+                                            work.content
+                                              ?.project_name ??
+                                            "—"
+                                          )
+                                        }
+
+                                      </div>
+
+
+                                      <div>
+
+                                        <strong>
+                                          Integrantes:
+                                        </strong>
+
+                                        {" "}
+
+                                        {
+                                          String(
+                                            work.content
+                                              ?.members ??
+                                            "—"
+                                          )
+                                        }
+
+                                      </div>
+
+
+                                      <div>
+
+                                        <strong>
+                                          Logo:
+                                        </strong>
+
+                                        {" "}
+
+                                        {
+                                          work.content
+                                            ?.logo_path
+                                            ? "✅ cargado"
+                                            : "❌ no cargado"
+                                        }
+
+                                      </div>
+
+                                    </div>
+
+                                  )
+                                }
+
+
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "minmax(120px,160px) 1fr",
+                                    gap: 12,
+                                    marginBottom: 12,
+                                  }}
+                                >
+
+                                  <label
+                                    style={{
+                                      display: "grid",
+                                      gap: 6,
+                                    }}
+                                  >
+
+                                    <strong>
+                                      Nota /4
+                                    </strong>
+
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="4"
+                                      step="0.1"
+                                      value={
+                                        reviewScores[
+                                          stage.id
+                                        ] ??
+                                        String(
+                                          numeric(
+                                            work.score
+                                          )
+                                        )
+                                      }
+                                      onChange={
+                                        event =>
+                                          setReviewScores(
+                                            current => ({
+                                              ...current,
+                                              [stage.id]:
+                                                event
+                                                  .target
+                                                  .value,
+                                            })
+                                          )
+                                      }
+                                      style={{
+                                        minHeight: 43,
+                                        border:
+                                          "1px solid #d1d5db",
+                                        borderRadius: 10,
+                                        padding:
+                                          "0 11px",
+                                      }}
+                                    />
+
+                                  </label>
+
+
+                                  <label
+                                    style={{
+                                      display: "grid",
+                                      gap: 6,
+                                    }}
+                                  >
+
+                                    <strong>
+                                      Comentario
+                                    </strong>
+
+                                    <textarea
+                                      rows={3}
+                                      value={
+                                        reviewComments[
+                                          stage.id
+                                        ] ??
+                                        work.teacher_comment ??
+                                        ""
+                                      }
+                                      onChange={
+                                        event =>
+                                          setReviewComments(
+                                            current => ({
+                                              ...current,
+                                              [stage.id]:
+                                                event
+                                                  .target
+                                                  .value,
+                                            })
+                                          )
+                                      }
+                                      placeholder="Felicitaciones, observaciones o correcciones..."
+                                      style={{
+                                        border:
+                                          "1px solid #d1d5db",
+                                        borderRadius: 10,
+                                        padding: 11,
+                                        resize: "vertical",
+                                      }}
+                                    />
+
+                                  </label>
+
+                                </div>
+
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent:
+                                      "flex-end",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                      reviewingStage ===
+                                      stage.id
+                                    }
+                                    onClick={
+                                      () =>
+                                        reviewStage(
+                                          activeGroup.id,
+                                          work,
+                                          "correction_required"
+                                        )
+                                    }
+                                  >
+
+                                    🔄 Pedir corrección
+
+                                  </Button>
+
+
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                      reviewingStage ===
+                                      stage.id
+                                    }
+                                    onClick={
+                                      () =>
+                                        reviewStage(
+                                          activeGroup.id,
+                                          work,
+                                          "rejected"
+                                        )
+                                    }
+                                    style={{
+                                      color: "#b91c1c",
+                                    }}
+                                  >
+
+                                    ❌ Rechazar
+
+                                  </Button>
+
+
+                                  <Button
+                                    type="button"
+                                    disabled={
+                                      reviewingStage ===
+                                      stage.id
+                                    }
+                                    onClick={
+                                      () =>
+                                        reviewStage(
+                                          activeGroup.id,
+                                          work,
+                                          "approved"
+                                        )
+                                    }
+                                  >
+
+                                    ✅ Aprobar etapa
+
+                                  </Button>
+
+                                </div>
+
+                              </div>
+
+                            )
+                          }
 
                         </div>
 
@@ -2079,59 +2663,27 @@ export default function HomePage() {
               </div>
 
 
-              <div
-                style={{
-                  marginTop: 22,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
+              {
+                activeGroup.completion_approved && (
 
-                {
-                  activeGroup.pendingReviews >
-                    0 && (
+                  <div
+                    style={{
+                      marginTop: 20,
+                      padding: 18,
+                      borderRadius: 16,
+                      textAlign: "center",
+                      background:
+                        "#ecfdf5",
+                      color: "#047857",
+                    }}
+                  >
 
-                    <div
-                      style={{
-                        background:
-                          "#fff7e6",
-                        borderRadius: 14,
-                        padding: 14,
-                        color:
-                          "#92400e",
-                      }}
-                    >
+                    🏆 Proyecto culminado oficialmente.
 
-                      🟡 Este grupo tiene una entrega esperando tu revisión.
+                  </div>
 
-                    </div>
-
-                  )
-                }
-
-
-                {
-                  activeGroup.completion_approved && (
-
-                    <div
-                      style={{
-                        background:
-                          "#ecfdf5",
-                        borderRadius: 14,
-                        padding: 14,
-                        color:
-                          "#047857",
-                      }}
-                    >
-
-                      🏆 Proyecto culminado. Diploma habilitado.
-
-                    </div>
-
-                  )
-                }
-
-              </div>
+                )
+              }
 
             </section>
 
