@@ -849,6 +849,77 @@ export default function HomePage() {
       );
     }
 
+    if (stage.id === 4) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <Field
+            label="Tipo de prototipo"
+            value={c.prototype_type}
+          />
+          <Field
+            label="Estado actual"
+            value={c.current_status}
+          />
+          <Field
+            label="Funciones implementadas"
+            value={c.implemented_features}
+          />
+          <Field
+            label="Funcionamiento de la IA"
+            value={c.ai_operation}
+          />
+          <Field
+            label="Pasos para probarlo"
+            value={c.testing_steps}
+          />
+          <Field
+            label="Trabajo pendiente"
+            value={c.pending_work}
+          />
+
+          {c.prototype_url && (
+            <a
+              href={String(c.prototype_url)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#4338ca",
+                fontWeight: 700,
+              }}
+            >
+              Abrir prototipo ↗
+            </a>
+          )}
+
+          <div>
+            <strong>Evidencia:</strong>{" "}
+            {c.evidence_path ? "✅ cargada" : "No adjunta"}
+          </div>
+
+          {c.evidence_path && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                openAsset(String(c.evidence_path))
+              }
+            >
+              Ver evidencia
+            </Button>
+          )}
+        </div>
+      );
+    }
+
     return null;
   }
 
