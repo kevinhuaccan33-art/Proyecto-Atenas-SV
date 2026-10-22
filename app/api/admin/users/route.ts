@@ -1,8 +1,16 @@
 import { env } from "cloudflare:workers";
 
+type SecretStoreBinding = {
+  get(): Promise<string>;
+};
+
+type SecretSource =
+  | string
+  | SecretStoreBinding;
+
 type Bindings = {
-  SUPABASE_SECRET_KEY?: string;
-  SUPABASE_SERVICE_ROLE_KEY?: string;
+  SUPABASE_SECRET_KEY?: SecretSource;
+  SUPABASE_SERVICE_ROLE_KEY?: SecretSource;
 };
 
 type StudentAccount = {
@@ -22,22 +30,45 @@ type GroupRow = {
 const SUPABASE_URL =
   "https://ozmkqjhqgakqttrhatfn.supabase.co";
 
-function getSecretKey() {
-  const bindings = env as unknown as Bindings;
+async function getSecretKey() {
+  const bindings =
+    env as unknown as Bindings;
 
-  const key =
+  const source =
     bindings.SUPABASE_SECRET_KEY ||
-    bindings.SUPABASE_SERVICE_ROLE_KEY ||
+    bindings.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (
+    typeof source === "string" &&
+    source.trim()
+  ) {
+    return source.trim();
+  }
+
+  if (
+    source &&
+    typeof source === "object" &&
+    typeof source.get === "function"
+  ) {
+    const value =
+      await source.get();
+
+    if (value?.trim()) {
+      return value.trim();
+    }
+  }
+
+  const processKey =
     process.env.SUPABASE_SECRET_KEY ||
     process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!key) {
-    throw new Error(
-      "Falta configurar SUPABASE_SECRET_KEY en Cloudflare."
-    );
+  if (processKey?.trim()) {
+    return processKey.trim();
   }
 
-  return key;
+  throw new Error(
+    "No hay un Secret de runtime conectado. En Cloudflare usa Settings → Bindings → Secrets Store y nombra el binding SUPABASE_SECRET_KEY."
+  );
 }
 
 function cleanUsername(value: unknown) {
@@ -111,7 +142,7 @@ async function adminFetch(
   init: RequestInit = {}
 ) {
   const secret =
-    getSecretKey();
+    await getSecretKey();
 
   const headers =
     new Headers(init.headers);
@@ -188,7 +219,7 @@ async function requireProfessor(
     authorization.slice(7);
 
   const secret =
-    getSecretKey();
+    await getSecretKey();
 
   const response =
     await fetch(
@@ -339,7 +370,7 @@ async function verifyPasswordLogin(
   password: string
 ) {
   const secret =
-    getSecretKey();
+    await getSecretKey();
 
   const response =
     await fetch(
