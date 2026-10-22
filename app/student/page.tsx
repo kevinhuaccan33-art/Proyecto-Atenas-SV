@@ -358,6 +358,18 @@ export default function StudentPage() {
   const [resourceUrl, setResourceUrl] = useState("");
   const [stage3Comment, setStage3Comment] = useState("");
 
+  // Etapa 4
+  const [prototypeType, setPrototypeType] = useState("web_app");
+  const [prototypeStatus, setPrototypeStatus] = useState("");
+  const [implementedFeatures, setImplementedFeatures] = useState("");
+  const [prototypeAiUse, setPrototypeAiUse] = useState("");
+  const [testingSteps, setTestingSteps] = useState("");
+  const [pendingWork, setPendingWork] = useState("");
+  const [prototypeUrl, setPrototypeUrl] = useState("");
+  const [prototypeEvidencePath, setPrototypeEvidencePath] = useState("");
+  const [prototypeEvidenceUrl, setPrototypeEvidenceUrl] = useState("");
+  const [stage4Comment, setStage4Comment] = useState("");
+
   const stage1 = useMemo(
     () => works.find((work) => work.stage_id === 1) ?? null,
     [works]
@@ -368,6 +380,10 @@ export default function StudentPage() {
   );
   const stage3 = useMemo(
     () => works.find((work) => work.stage_id === 3) ?? null,
+    [works]
+  );
+  const stage4 = useMemo(
+    () => works.find((work) => work.stage_id === 4) ?? null,
     [works]
   );
 
@@ -605,6 +621,46 @@ export default function StudentPage() {
       setDataLimitations(String(dataContent.limitations ?? ""));
       setResourceUrl(String(dataContent.resource_url ?? ""));
       setStage3Comment(dataStage?.student_comment ?? "");
+
+      const prototypeStage = loadedWorks.find(
+        (work) => work.stage_id === 4
+      );
+      const prototypeContent =
+        prototypeStage?.content &&
+        typeof prototypeStage.content === "object"
+          ? prototypeStage.content
+          : {};
+
+      setPrototypeType(
+        String(prototypeContent.prototype_type ?? "web_app")
+      );
+      setPrototypeStatus(
+        String(prototypeContent.current_status ?? "")
+      );
+      setImplementedFeatures(
+        String(prototypeContent.implemented_features ?? "")
+      );
+      setPrototypeAiUse(
+        String(prototypeContent.ai_operation ?? "")
+      );
+      setTestingSteps(
+        String(prototypeContent.testing_steps ?? "")
+      );
+      setPendingWork(
+        String(prototypeContent.pending_work ?? "")
+      );
+      setPrototypeUrl(
+        String(prototypeContent.prototype_url ?? "")
+      );
+
+      const evidencePath = String(
+        prototypeContent.evidence_path ?? ""
+      );
+      setPrototypeEvidencePath(evidencePath);
+      setPrototypeEvidenceUrl(
+        evidencePath ? await createFileUrl(evidencePath) : ""
+      );
+      setStage4Comment(prototypeStage?.student_comment ?? "");
     } catch (error) {
       console.error("Error cargando grupo:", error);
       setMessage(
@@ -727,6 +783,62 @@ export default function StudentPage() {
         error instanceof Error
           ? error.message
           : "No se pudo subir el esquema."
+      );
+    } finally {
+      setUploadingStage(null);
+      event.target.value = "";
+    }
+  }
+
+  async function uploadPrototypeEvidence(
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+    if (!file || !group) return;
+
+    setMessage("");
+
+    const allowed = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!allowed.includes(file.type)) {
+      setMessage(
+        "La evidencia debe ser PNG, JPG, WebP o PDF."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage(
+        "La evidencia no puede superar 10 MB."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    setUploadingStage(4);
+
+    try {
+      const path = await uploadStageFile(file, 4);
+      setPrototypeEvidencePath(path);
+
+      if (file.type === "application/pdf") {
+        setPrototypeEvidenceUrl(await createFileUrl(path));
+      } else {
+        setPrototypeEvidenceUrl(URL.createObjectURL(file));
+      }
+
+      setMessage("Evidencia del prototipo cargada correctamente.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo subir la evidencia."
       );
     } finally {
       setUploadingStage(null);
@@ -943,6 +1055,77 @@ export default function StudentPage() {
         resource_url: resourceUrl.trim(),
       },
       stage3Comment,
+      submit
+    );
+  }
+
+  async function saveStage4(submit: boolean) {
+    if (!stage4 || !editable(stage4)) {
+      setMessage("La Etapa 4 está bloqueada.");
+      return;
+    }
+
+    const fields = [
+      ["Estado actual del prototipo", prototypeStatus],
+      ["Funciones implementadas", implementedFeatures],
+      ["Funcionamiento de la IA", prototypeAiUse],
+      ["Pasos para probarlo", testingSteps],
+      ["Trabajo pendiente", pendingWork],
+    ];
+
+    if (submit) {
+      const missing = fields.find(([, value]) => !value.trim());
+
+      if (missing) {
+        setMessage(`Falta completar: ${missing[0]}.`);
+        return;
+      }
+
+      const cleanPrototypeUrl = prototypeUrl.trim();
+
+      if (cleanPrototypeUrl) {
+        try {
+          const parsed = new URL(cleanPrototypeUrl);
+          if (!["https:", "http:"].includes(parsed.protocol)) {
+            throw new Error("invalid");
+          }
+        } catch {
+          setMessage(
+            "El enlace del prototipo no es válido."
+          );
+          return;
+        }
+      }
+
+      if (!cleanPrototypeUrl && !prototypeEvidencePath) {
+        setMessage(
+          "Para enviar la Etapa 4 debes colocar un enlace al prototipo o subir una evidencia."
+        );
+        return;
+      }
+
+      if (
+        !window.confirm(
+          "¿Enviar la Etapa 4 al profesor? Quedará bloqueada mientras se revisa."
+        )
+      ) {
+        return;
+      }
+    }
+
+    await updateStage(
+      4,
+      {
+        prototype_type: prototypeType,
+        current_status: prototypeStatus.trim(),
+        implemented_features: implementedFeatures.trim(),
+        ai_operation: prototypeAiUse.trim(),
+        testing_steps: testingSteps.trim(),
+        pending_work: pendingWork.trim(),
+        prototype_url: prototypeUrl.trim(),
+        evidence_path: prototypeEvidencePath,
+      },
+      stage4Comment,
       submit
     );
   }
@@ -1834,6 +2017,299 @@ export default function StudentPage() {
           </section>
         )}
 
+        {stage4 && (
+          <section
+            style={{
+              background: "white",
+              borderRadius: 24,
+              padding: 30,
+              marginBottom: 24,
+              opacity: stage4.status === "locked" ? 0.72 : 1,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 15,
+                flexWrap: "wrap",
+                marginBottom: 24,
+              }}
+            >
+              <div>
+                <small style={{ color: "#f39a32", fontWeight: 800 }}>
+                  ETAPA 4 · 4 PUNTOS
+                </small>
+                <h2>Prototipo funcional</h2>
+                <p style={{ color: "#6b7280" }}>
+                  Demuestra qué ya funciona, cómo interviene la IA y
+                  cómo puede probarse el prototipo.
+                </p>
+              </div>
+              <StatusPill status={stage4.status} />
+            </div>
+
+            {stage4.status === "locked" ? (
+              <LockedNotice previous={3} />
+            ) : (
+              <>
+                <TeacherComment work={stage4} />
+
+                <form
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                    event.preventDefault();
+                    saveStage4(false);
+                  }}
+                  style={{ display: "grid", gap: 20 }}
+                >
+                  <label style={{ display: "grid", gap: 7 }}>
+                    <strong>1. Tipo de prototipo</strong>
+                    <select
+                      value={prototypeType}
+                      disabled={!editable(stage4)}
+                      onChange={(event) =>
+                        setPrototypeType(event.target.value)
+                      }
+                      style={{
+                        minHeight: 46,
+                        border: "1px solid #d1d5db",
+                        borderRadius: 12,
+                        padding: "0 14px",
+                        fontSize: 15,
+                        background: editable(stage4)
+                          ? "white"
+                          : "#f3f4f6",
+                      }}
+                    >
+                      <option value="web_app">Web / aplicación</option>
+                      <option value="mobile">Aplicación móvil</option>
+                      <option value="game">Videojuego</option>
+                      <option value="physical">
+                        Prototipo físico / electrónico
+                      </option>
+                      <option value="model">
+                        Modelo de IA / demostración
+                      </option>
+                      <option value="other">Otro</option>
+                    </select>
+                  </label>
+
+                  <TextAreaField
+                    label="2. Estado actual del prototipo"
+                    value={prototypeStatus}
+                    onChange={setPrototypeStatus}
+                    disabled={!editable(stage4)}
+                    placeholder="¿Qué parte del proyecto ya funciona actualmente?"
+                  />
+
+                  <TextAreaField
+                    label="3. Funciones implementadas"
+                    value={implementedFeatures}
+                    onChange={setImplementedFeatures}
+                    disabled={!editable(stage4)}
+                    placeholder="Enumera las funciones que ya están operativas."
+                  />
+
+                  <TextAreaField
+                    label="4. ¿Cómo está funcionando la IA?"
+                    value={prototypeAiUse}
+                    onChange={setPrototypeAiUse}
+                    disabled={!editable(stage4)}
+                    placeholder="Explica qué recibe la IA, qué procesa y qué resultado entrega."
+                  />
+
+                  <TextAreaField
+                    label="5. Pasos para probar el prototipo"
+                    value={testingSteps}
+                    onChange={setTestingSteps}
+                    disabled={!editable(stage4)}
+                    placeholder="Indica paso a paso qué debe hacer el profesor para probarlo."
+                  />
+
+                  <TextAreaField
+                    label="6. ¿Qué falta por completar?"
+                    value={pendingWork}
+                    onChange={setPendingWork}
+                    disabled={!editable(stage4)}
+                    placeholder="Funciones pendientes, errores conocidos o mejoras antes de la versión final."
+                  />
+
+                  <TextField
+                    label="7. Enlace al prototipo o demostración"
+                    value={prototypeUrl}
+                    onChange={setPrototypeUrl}
+                    disabled={!editable(stage4)}
+                    type="url"
+                    placeholder="https://... (opcional si subes evidencia)"
+                  />
+
+                  {prototypeUrl && (
+                    <a
+                      href={prototypeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        color: "#4338ca",
+                        fontWeight: 700,
+                        width: "fit-content",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <LinkIcon size={16} />
+                      Abrir prototipo
+                    </a>
+                  )}
+
+                  <div>
+                    <strong
+                      style={{
+                        display: "block",
+                        marginBottom: 8,
+                      }}
+                    >
+                      8. Evidencia del prototipo
+                    </strong>
+
+                    <div
+                      style={{
+                        border: "1px dashed #c7c9d4",
+                        borderRadius: 17,
+                        padding: 18,
+                      }}
+                    >
+                      {prototypeEvidencePath && (
+                        <div
+                          style={{
+                            background: "#ecfdf5",
+                            color: "#047857",
+                            padding: 12,
+                            borderRadius: 12,
+                            marginBottom: 12,
+                          }}
+                        >
+                          ✅ Evidencia cargada
+                          {prototypeEvidenceUrl && (
+                            <>
+                              {" · "}
+                              <a
+                                href={prototypeEvidenceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  color: "#4338ca",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Ver evidencia
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      <label
+                        style={{
+                          cursor: editable(stage4)
+                            ? "pointer"
+                            : "not-allowed",
+                        }}
+                      >
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,application/pdf"
+                          disabled={
+                            !editable(stage4) || uploadingStage === 4
+                          }
+                          onChange={uploadPrototypeEvidence}
+                        />
+
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                            border: "1px solid #d1d5db",
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                          }}
+                        >
+                          <Upload size={17} />
+                          {uploadingStage === 4
+                            ? "Subiendo..."
+                            : prototypeEvidencePath
+                            ? "Cambiar evidencia"
+                            : "Subir evidencia"}
+                        </span>
+                      </label>
+
+                      <small
+                        style={{
+                          display: "block",
+                          color: "#6b7280",
+                          marginTop: 8,
+                        }}
+                      >
+                        Captura, imagen o PDF · máximo 10 MB.
+                        Para enviar necesitas un enlace o una evidencia.
+                      </small>
+                    </div>
+                  </div>
+
+                  <TextAreaField
+                    label="Comentario para el profesor"
+                    value={stage4Comment}
+                    onChange={setStage4Comment}
+                    disabled={!editable(stage4)}
+                    placeholder="Comentario opcional sobre el prototipo."
+                    rows={3}
+                  />
+
+                  {editable(stage4) ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={
+                          savingStage === 4 || uploadingStage === 4
+                        }
+                      >
+                        <FileText size={17} />
+                        Guardar borrador
+                      </Button>
+
+                      <Button
+                        type="button"
+                        disabled={
+                          savingStage === 4 || uploadingStage === 4
+                        }
+                        onClick={() => saveStage4(true)}
+                      >
+                        <Send size={17} />
+                        Enviar Etapa 4 al profesor
+                      </Button>
+                    </div>
+                  ) : (
+                    <FrozenNotice
+                      work={stage4}
+                      approvedMessage="Etapa 4 aprobada"
+                    />
+                  )}
+                </form>
+              </>
+            )}
+          </section>
+        )}
+
         <section
           style={{
             background: "white",
@@ -1845,7 +2321,7 @@ export default function StudentPage() {
 
           <div style={{ display: "grid", gap: 12 }}>
             {stages
-              .filter((stage) => stage.id >= 4)
+              .filter((stage) => stage.id >= 5)
               .map((stage) => {
                 const work =
                   works.find((item) => item.stage_id === stage.id) ??
