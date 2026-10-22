@@ -8,8 +8,11 @@ import {
 } from "react";
 
 import {
+  Award,
   Bell,
   ChevronRight,
+  Eye,
+  Music2,
   FolderKanban,
   Home,
   LayoutGrid,
@@ -320,6 +323,19 @@ export default function HomePage() {
     useState<Record<number, string>>({});
   const [notice, setNotice] = useState("");
 
+  const [finalizingGroup, setFinalizingGroup] =
+    useState<number | null>(null);
+
+  const [assetPreview, setAssetPreview] =
+    useState<{
+      url: string;
+      label: string;
+      kind: "image" | "pdf";
+    } | null>(null);
+
+  const [previewLoading, setPreviewLoading] =
+    useState(false);
+
   const activeGroup = useMemo(
     () =>
       groups.find((group) => group.id === activeGroupId) ??
@@ -616,6 +632,165 @@ export default function HomePage() {
     }
   }
 
+  async function previewAsset(
+    path: string,
+    label: string
+  ) {
+    setPreviewLoading(true);
+    setNotice("");
+
+    try {
+      const supabase = await getSupabase();
+
+      const { data, error } = await supabase.storage
+        .from("project-assets")
+        .createSignedUrl(path, 3600);
+
+      if (error || !data?.signedUrl) {
+        throw error ?? new Error("No se pudo abrir la vista previa.");
+      }
+
+      const cleanPath =
+        path.toLowerCase().split("?")[0];
+
+      setAssetPreview({
+        url: data.signedUrl,
+        label,
+        kind: cleanPath.endsWith(".pdf")
+          ? "pdf"
+          : "image",
+      });
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        "No se pudo cargar la vista previa del archivo."
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function playCelebrationMusic() {
+    try {
+      const AudioContextClass =
+        (window as any).AudioContext ||
+        (window as any).webkitAudioContext;
+
+      if (!AudioContextClass) {
+        setNotice(
+          "Este navegador no permite reproducir la celebración."
+        );
+        return;
+      }
+
+      const context = new AudioContextClass();
+      const now = context.currentTime;
+
+      const notes = [
+        { frequency: 523.25, start: 0, duration: 0.18 },
+        { frequency: 659.25, start: 0.2, duration: 0.18 },
+        { frequency: 783.99, start: 0.4, duration: 0.22 },
+        { frequency: 1046.5, start: 0.66, duration: 0.5 },
+      ];
+
+      notes.forEach((note) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.type = "triangle";
+        oscillator.frequency.value = note.frequency;
+
+        gain.gain.setValueAtTime(0.0001, now + note.start);
+        gain.gain.exponentialRampToValueAtTime(
+          0.16,
+          now + note.start + 0.02
+        );
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          now + note.start + note.duration
+        );
+
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+
+        oscillator.start(now + note.start);
+        oscillator.stop(now + note.start + note.duration + 0.03);
+      });
+
+      setNotice("🎵 Celebración reproducida.");
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        "No se pudo reproducir la música de celebración."
+      );
+    }
+  }
+
+  async function finalizeProject(group: AtenasGroup) {
+    const allApproved =
+      group.stageWorks.length === 5 &&
+      group.stageWorks.every(
+        (work) => work.status === "approved"
+      );
+
+    if (!allApproved || Math.abs(group.grade - 20) > 0.001) {
+      setNotice(
+        "El diploma requiere las cinco etapas aprobadas y una nota final de 20/20."
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "¿Emitir ahora el diploma y aprobar oficialmente la culminación del proyecto?"
+      )
+    ) {
+      return;
+    }
+
+    setFinalizingGroup(group.id);
+    setNotice("");
+
+    try {
+      const supabase = await getSupabase();
+
+      const year = new Date().getFullYear();
+
+      const diplomaCode =
+        `ATENAS-IA-${year}-${String(group.id).padStart(2, "0")}-${crypto
+          .randomUUID()
+          .slice(0, 6)
+          .toUpperCase()}`;
+
+      const { error } = await supabase
+        .from("groups")
+        .update({
+          completion_approved: true,
+          completion_approved_at: new Date().toISOString(),
+          diploma_code: diplomaCode,
+        })
+        .eq("id", group.id);
+
+      if (error) throw error;
+
+      setNotice(
+        `🎓 Diploma emitido para el Grupo ${group.id}: ${diplomaCode}`
+      );
+
+      await loadDashboard(false);
+    } catch (error) {
+      console.error("Error emitiendo diploma:", error);
+
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo emitir el diploma."
+      );
+    } finally {
+      setFinalizingGroup(null);
+    }
+  }
+
   async function logout() {
     const supabase = await getSupabase();
     await supabase.auth.signOut();
@@ -766,20 +941,43 @@ export default function HomePage() {
           />
 
           <div>
-            <strong>Esquema:</strong>{" "}
+            <strong>Esquema / flyer:</strong>{" "}
             {c.scheme_path ? "✅ cargado" : "❌ no cargado"}
           </div>
 
           {c.scheme_path && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                openAsset(String(c.scheme_path))
-              }
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
             >
-              Ver esquema
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={previewLoading}
+                onClick={() =>
+                  previewAsset(
+                    String(c.scheme_path),
+                    "Esquema / flyer del proyecto"
+                  )
+                }
+              >
+                <Eye size={16} />
+                Vista previa
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  openAsset(String(c.scheme_path))
+                }
+              >
+                Abrir aparte
+              </Button>
+            </div>
           )}
         </div>
       );
@@ -906,15 +1104,143 @@ export default function HomePage() {
           </div>
 
           {c.evidence_path && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                openAsset(String(c.evidence_path))
-              }
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
             >
-              Ver evidencia
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={previewLoading}
+                onClick={() =>
+                  previewAsset(
+                    String(c.evidence_path),
+                    "Evidencia del prototipo"
+                  )
+                }
+              >
+                <Eye size={16} />
+                Vista previa
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  openAsset(String(c.evidence_path))
+                }
+              >
+                Abrir aparte
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (stage.id === 5) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <Field
+            label="Resumen final"
+            value={c.final_summary}
+          />
+
+          {c.final_demo_url && (
+            <a
+              href={String(c.final_demo_url)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#4338ca",
+                fontWeight: 700,
+              }}
+            >
+              Abrir versión final / demo ↗
+            </a>
+          )}
+
+          <Field
+            label="Pruebas realizadas"
+            value={c.tests_performed}
+          />
+          <Field
+            label="Resultados"
+            value={c.test_results}
+          />
+          <Field
+            label="Conclusiones"
+            value={c.conclusions}
+          />
+
+          {c.presentation_url && (
+            <a
+              href={String(c.presentation_url)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#4338ca",
+                fontWeight: 700,
+              }}
+            >
+              Abrir presentación final ↗
+            </a>
+          )}
+
+          <div>
+            <strong>Evidencia final:</strong>{" "}
+            {c.final_evidence_path
+              ? "✅ cargada"
+              : "No adjunta"}
+          </div>
+
+          {c.final_evidence_path && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                type="button"
+                variant="outline"
+                disabled={previewLoading}
+                onClick={() =>
+                  previewAsset(
+                    String(c.final_evidence_path),
+                    "Evidencia final"
+                  )
+                }
+              >
+                <Eye size={16} />
+                Vista previa
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  openAsset(
+                    String(c.final_evidence_path)
+                  )
+                }
+              >
+                Abrir aparte
+              </Button>
+            </div>
           )}
         </div>
       );
@@ -1173,6 +1499,135 @@ export default function HomePage() {
           onClick={() => setMobileNav(false)}
           aria-label="Cerrar menú"
         />
+      )}
+
+      {assetPreview && (
+        <div
+          onMouseDown={() =>
+            setAssetPreview(null)
+          }
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 3000,
+            background: "rgba(15,23,42,.78)",
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <section
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+            style={{
+              width: "min(1100px,96vw)",
+              height: "min(820px,90vh)",
+              background: "white",
+              borderRadius: 22,
+              padding: 18,
+              display: "grid",
+              gridTemplateRows: "auto 1fr",
+              gap: 12,
+              boxShadow:
+                "0 30px 80px rgba(15,23,42,.35)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <small
+                  style={{
+                    color: "#6b7280",
+                    fontWeight: 700,
+                  }}
+                >
+                  VISTA PREVIA
+                </small>
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: 18,
+                  }}
+                >
+                  {assetPreview.label}
+                </strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                }}
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    window.open(
+                      assetPreview.url,
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+                  }
+                >
+                  Abrir en pestaña
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setAssetPreview(null)
+                  }
+                >
+                  <X size={17} />
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                minHeight: 0,
+                borderRadius: 16,
+                overflow: "hidden",
+                background: "#f3f4f6",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              {assetPreview.kind === "pdf" ? (
+                <iframe
+                  title={assetPreview.label}
+                  src={assetPreview.url}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    border: 0,
+                    background: "white",
+                  }}
+                />
+              ) : (
+                <img
+                  src={assetPreview.url}
+                  alt={assetPreview.label}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                  }}
+                />
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
       {activeGroup && (
@@ -1529,6 +1984,60 @@ export default function HomePage() {
               })}
             </div>
 
+            {!activeGroup.completion_approved &&
+              activeGroup.approvedStages === 5 && (
+                <div
+                  style={{
+                    marginTop: 20,
+                    padding: 20,
+                    borderRadius: 16,
+                    textAlign: "center",
+                    background:
+                      Math.abs(activeGroup.grade - 20) < 0.001
+                        ? "#fff7ed"
+                        : "#f8fafc",
+                    border:
+                      Math.abs(activeGroup.grade - 20) < 0.001
+                        ? "1px solid #fed7aa"
+                        : "1px solid #e5e7eb",
+                  }}
+                >
+                  <Award size={38} />
+
+                  <h3 style={{ margin: "8px 0" }}>
+                    Cierre oficial del proyecto
+                  </h3>
+
+                  {Math.abs(activeGroup.grade - 20) < 0.001 ? (
+                    <>
+                      <p>
+                        Las cinco etapas están aprobadas con 20/20.
+                        El diploma NO se emite solo: tú decides cuándo
+                        hacerlo.
+                      </p>
+
+                      <Button
+                        type="button"
+                        disabled={
+                          finalizingGroup === activeGroup.id
+                        }
+                        onClick={() =>
+                          finalizeProject(activeGroup)
+                        }
+                      >
+                        🎓 Emitir diploma final
+                      </Button>
+                    </>
+                  ) : (
+                    <p style={{ color: "#6b7280" }}>
+                      Las cinco etapas están aprobadas, pero la nota
+                      total es {activeGroup.grade}/20. El diploma
+                      requiere 20/20.
+                    </p>
+                  )}
+                </div>
+              )}
+
             {activeGroup.completion_approved && (
               <div
                 style={{
@@ -1540,7 +2049,36 @@ export default function HomePage() {
                   color: "#047857",
                 }}
               >
-                🏆 Proyecto culminado oficialmente.
+                <div style={{ fontSize: 38 }}>
+                  🎓
+                </div>
+
+                <strong
+                  style={{
+                    display: "block",
+                    marginTop: 6,
+                  }}
+                >
+                  Proyecto culminado oficialmente
+                </strong>
+
+                {activeGroup.diploma_code && (
+                  <div style={{ marginTop: 8 }}>
+                    Código de diploma:{" "}
+                    <strong>
+                      {activeGroup.diploma_code}
+                    </strong>
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  style={{ marginTop: 14 }}
+                  onClick={playCelebrationMusic}
+                >
+                  <Music2 size={17} />
+                  Reproducir música de celebración
+                </Button>
               </div>
             )}
           </section>
