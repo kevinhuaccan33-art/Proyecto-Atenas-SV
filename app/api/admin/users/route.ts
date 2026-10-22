@@ -27,7 +27,9 @@ function getSecretKey() {
 
   const key =
     bindings.SUPABASE_SECRET_KEY ||
-    bindings.SUPABASE_SERVICE_ROLE_KEY;
+    bindings.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!key) {
     throw new Error(
@@ -1041,4 +1043,3 @@ export async function POST(
     );
   }
 }
-// Cloudflare runtime secret configured
