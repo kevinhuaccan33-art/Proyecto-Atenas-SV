@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
+
 import {
   Bell,
   ChevronRight,
@@ -18,7 +24,11 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { getSupabase } from "@/lib/supabase-browser";
 
 type StageStatus =
@@ -87,14 +97,17 @@ const STATUS_INFO: Record<
   locked: { icon: "🔒", label: "Bloqueada" },
   editable: { icon: "✏️", label: "Editable" },
   submitted: { icon: "🟡", label: "En revisión" },
-  correction_required: { icon: "🔄", label: "Corrección solicitada" },
+  correction_required: {
+    icon: "🔄",
+    label: "Corrección solicitada",
+  },
   approved: { icon: "✅", label: "Aprobada" },
   rejected: { icon: "❌", label: "Rechazada" },
 };
 
 function numeric(value: number | string | null | undefined) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
+  const result = Number(value ?? 0);
+  return Number.isFinite(result) ? result : 0;
 }
 
 function formatDate(value: string | null) {
@@ -154,6 +167,23 @@ function buildGroup(
   };
 }
 
+function Field({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  return (
+    <div>
+      <strong>{label}:</strong>
+      <p style={{ margin: "5px 0 0", whiteSpace: "pre-wrap" }}>
+        {String(value ?? "—")}
+      </p>
+    </div>
+  );
+}
+
 function GroupCard({
   group,
   stages,
@@ -177,15 +207,12 @@ function GroupCard({
   let stageLabel = stage?.name ?? "Etapa 1";
 
   if (!group.active) stageLabel = "Deshabilitado";
-  if (group.pendingReviews > 0) stageLabel = "Pendiente de revisión";
-  if (group.corrections > 0) stageLabel = "Corrección solicitada";
-  if (group.completion_approved) stageLabel = "Proyecto finalizado";
-
-  const title =
-    group.project_name?.trim() || `Grupo ${group.id}`;
-
-  const members =
-    group.members?.trim() || "Sin integrantes asignados";
+  if (group.pendingReviews > 0)
+    stageLabel = "Pendiente de revisión";
+  if (group.corrections > 0)
+    stageLabel = "Corrección solicitada";
+  if (group.completion_approved)
+    stageLabel = "Proyecto finalizado";
 
   return (
     <article
@@ -208,17 +235,17 @@ function GroupCard({
             ? "🤖"
             : "🔒"}
         </div>
-
         <span className="stage-pill">{stageLabel}</span>
       </div>
 
       <div>
         <p className="team-name">Grupo {group.id}</p>
-        <h3>{title}</h3>
-
+        <h3>
+          {group.project_name?.trim() || `Grupo ${group.id}`}
+        </h3>
         <p className="members">
           <Users />
-          {members}
+          {group.members?.trim() || "Sin integrantes asignados"}
         </p>
       </div>
 
@@ -229,7 +256,6 @@ function GroupCard({
             {group.grade}/20 · {group.progress}%
           </strong>
         </div>
-
         <Progress
           value={group.progress}
           className="project-progress"
@@ -263,10 +289,7 @@ function GroupCard({
           {group.active ? "Deshabilitar" : "Habilitar"}
         </Button>
 
-        <button
-          onClick={onOpen}
-          aria-label={`Ver Grupo ${group.id}`}
-        >
+        <button onClick={onOpen}>
           Ver grupo
           <ChevronRight />
         </button>
@@ -280,27 +303,21 @@ export default function HomePage() {
   const [stages, setStages] = useState<StageDefinition[]>([]);
   const [activeGroupId, setActiveGroupId] =
     useState<number | null>(null);
-
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("todos");
   const [mobileNav, setMobileNav] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [teacherName, setTeacherName] =
     useState("Profesor Kevin");
-
   const [loading, setLoading] = useState(true);
   const [changingGroup, setChangingGroup] =
     useState<number | null>(null);
-
   const [reviewingStage, setReviewingStage] =
     useState<number | null>(null);
-
   const [reviewScores, setReviewScores] =
     useState<Record<number, string>>({});
-
   const [reviewComments, setReviewComments] =
     useState<Record<number, string>>({});
-
   const [notice, setNotice] = useState("");
 
   const activeGroup = useMemo(
@@ -316,10 +333,8 @@ export default function HomePage() {
     async function verifyAccess() {
       try {
         const supabase = await getSupabase();
-
         const { data: sessionData } =
           await supabase.auth.getSession();
-
         const user = sessionData.session?.user;
 
         if (!user) {
@@ -363,60 +378,57 @@ export default function HomePage() {
     };
   }, []);
 
-  async function loadDashboard() {
-    setLoading(true);
+  async function loadDashboard(showSpinner = false) {
+    if (showSpinner) setLoading(true);
 
     try {
       const supabase = await getSupabase();
 
-      const [
-        groupsResult,
-        stagesResult,
-        workResult,
-      ] = await Promise.all([
-        supabase
-          .from("groups")
-          .select(`
-            id,
-            members,
-            project_name,
-            logo_path,
-            active,
-            completion_approved,
-            completion_approved_at,
-            diploma_code,
-            updated_at
-          `)
-          .order("id", { ascending: true }),
+      const [groupsResult, stagesResult, workResult] =
+        await Promise.all([
+          supabase
+            .from("groups")
+            .select(`
+              id,
+              members,
+              project_name,
+              logo_path,
+              active,
+              completion_approved,
+              completion_approved_at,
+              diploma_code,
+              updated_at
+            `)
+            .order("id", { ascending: true }),
 
-        supabase
-          .from("stages")
-          .select(`
-            id,
-            name,
-            description,
-            milestone_percent
-          `)
-          .order("id", { ascending: true }),
+          supabase
+            .from("stages")
+            .select(`
+              id,
+              name,
+              description,
+              milestone_percent
+            `)
+            .order("id", { ascending: true }),
 
-        supabase
-          .from("group_stage_work")
-          .select(`
-            group_id,
-            stage_id,
-            status,
-            score,
-            content,
-            evidence_url,
-            student_comment,
-            teacher_comment,
-            revision,
-            submitted_at,
-            reviewed_at
-          `)
-          .order("group_id", { ascending: true })
-          .order("stage_id", { ascending: true }),
-      ]);
+          supabase
+            .from("group_stage_work")
+            .select(`
+              group_id,
+              stage_id,
+              status,
+              score,
+              content,
+              evidence_url,
+              student_comment,
+              teacher_comment,
+              revision,
+              submitted_at,
+              reviewed_at
+            `)
+            .order("group_id", { ascending: true })
+            .order("stage_id", { ascending: true }),
+        ]);
 
       if (groupsResult.error) throw groupsResult.error;
       if (stagesResult.error) throw stagesResult.error;
@@ -424,19 +436,14 @@ export default function HomePage() {
 
       const rawGroups =
         (groupsResult.data ?? []) as GroupRow[];
-
       const rawStages =
         (stagesResult.data ?? []) as StageDefinition[];
-
       const rawWork =
         (workResult.data ?? []) as StageWork[];
 
       setStages(rawStages);
-
       setGroups(
-        rawGroups.map((group) =>
-          buildGroup(group, rawWork)
-        )
+        rawGroups.map((group) => buildGroup(group, rawWork))
       );
     } catch (error) {
       console.error("Error cargando panel:", error);
@@ -444,13 +451,13 @@ export default function HomePage() {
         "No se pudieron cargar los datos desde Supabase."
       );
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   }
 
   useEffect(() => {
     if (!authReady) return;
-    loadDashboard();
+    loadDashboard(true);
   }, [authReady]);
 
   async function toggleGroup(group: AtenasGroup) {
@@ -459,12 +466,9 @@ export default function HomePage() {
 
     try {
       const supabase = await getSupabase();
-
       const { error } = await supabase
         .from("groups")
-        .update({
-          active: !group.active,
-        })
+        .update({ active: !group.active })
         .eq("id", group.id);
 
       if (error) throw error;
@@ -475,10 +479,9 @@ export default function HomePage() {
           : `Grupo ${group.id} deshabilitado.`
       );
 
-      await loadDashboard();
+      await loadDashboard(false);
     } catch (error) {
       console.error(error);
-
       setNotice(
         "No se pudo cambiar el estado del grupo."
       );
@@ -490,7 +493,6 @@ export default function HomePage() {
   async function openAsset(path: string) {
     try {
       const supabase = await getSupabase();
-
       const { data, error } = await supabase.storage
         .from("project-assets")
         .createSignedUrl(path, 3600);
@@ -499,11 +501,7 @@ export default function HomePage() {
         throw error ?? new Error("No se pudo abrir el archivo.");
       }
 
-      window.open(
-        data.signedUrl,
-        "_blank",
-        "noopener,noreferrer"
-      );
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error(error);
       setNotice("No se pudo abrir el archivo.");
@@ -527,15 +525,12 @@ export default function HomePage() {
     ).trim();
 
     const score = Number(
-      reviewScores[stageId] ??
-        numeric(work.score)
+      reviewScores[stageId] ?? numeric(work.score)
     );
 
     if (
       action === "approved" &&
-      (!Number.isFinite(score) ||
-        score < 0 ||
-        score > 4)
+      (!Number.isFinite(score) || score < 0 || score > 4)
     ) {
       setNotice(
         "La nota debe estar entre 0 y 4 puntos."
@@ -555,18 +550,12 @@ export default function HomePage() {
     }
 
     let confirmation = "";
-
     if (action === "approved") {
-      confirmation =
-        `¿Aprobar esta etapa con ${score}/4 puntos?`;
-    }
-
-    if (action === "correction_required") {
+      confirmation = `¿Aprobar esta etapa con ${score}/4 puntos?`;
+    } else if (action === "correction_required") {
       confirmation =
         "¿Solicitar corrección? El estudiante podrá editar nuevamente esta etapa.";
-    }
-
-    if (action === "rejected") {
+    } else {
       confirmation = "¿Rechazar esta entrega?";
     }
 
@@ -583,13 +572,8 @@ export default function HomePage() {
         teacher_comment: comment,
       };
 
-      if (action === "approved") {
-        payload.score = score;
-      }
-
-      if (action === "rejected") {
-        payload.score = 0;
-      }
+      if (action === "approved") payload.score = score;
+      if (action === "rejected") payload.score = 0;
 
       const { error } = await supabase
         .from("group_stage_work")
@@ -599,23 +583,13 @@ export default function HomePage() {
 
       if (error) throw error;
 
-      if (action === "approved") {
-        setNotice(
-          `Etapa ${stageId} aprobada con ${score}/4 puntos.`
-        );
-      }
-
-      if (action === "correction_required") {
-        setNotice(
-          `Se solicitó corrección en la Etapa ${stageId}.`
-        );
-      }
-
-      if (action === "rejected") {
-        setNotice(
-          `Etapa ${stageId} rechazada.`
-        );
-      }
+      setNotice(
+        action === "approved"
+          ? `Etapa ${stageId} aprobada con ${score}/4 puntos.`
+          : action === "correction_required"
+          ? `Se solicitó corrección en la Etapa ${stageId}.`
+          : `Etapa ${stageId} rechazada.`
+      );
 
       setReviewScores((current) => {
         const copy = { ...current };
@@ -629,10 +603,9 @@ export default function HomePage() {
         return copy;
       });
 
-      await loadDashboard();
+      await loadDashboard(false);
     } catch (error) {
       console.error("Error evaluando:", error);
-
       setNotice(
         error instanceof Error
           ? error.message
@@ -649,37 +622,28 @@ export default function HomePage() {
     window.location.replace("/login");
   }
 
-  const activeGroups = groups.filter(
-    (group) => group.active
-  );
-
+  const activeGroups = groups.filter((group) => group.active);
   const activeCount = activeGroups.length;
-
   const pendingTotal = groups.reduce(
-    (total, group) =>
-      total + group.pendingReviews,
+    (total, group) => total + group.pendingReviews,
     0
   );
-
   const averageProgress = activeGroups.length
     ? Math.round(
         activeGroups.reduce(
-          (total, group) =>
-            total + group.progress,
+          (total, group) => total + group.progress,
           0
         ) / activeGroups.length
       )
     : 0;
 
   const visibleGroups = useMemo(() => {
-    const normalizedQuery =
-      query.trim().toLowerCase();
+    const normalizedQuery = query.trim().toLowerCase();
 
     return groups.filter((group) => {
-      const text =
-        `${group.id} ${group.members} ${
-          group.project_name ?? ""
-        }`.toLowerCase();
+      const text = `${group.id} ${group.members} ${
+        group.project_name ?? ""
+      }`.toLowerCase();
 
       if (
         normalizedQuery &&
@@ -688,9 +652,7 @@ export default function HomePage() {
         return false;
       }
 
-      if (filter === "activos") {
-        return group.active;
-      }
+      if (filter === "activos") return group.active;
 
       if (filter === "revision") {
         return (
@@ -729,11 +691,165 @@ export default function HomePage() {
           >
             Atenas IA Lab
           </strong>
-
           Verificando acceso...
         </div>
       </main>
     );
+  }
+
+  function renderSubmission(
+    stage: StageDefinition,
+    work: StageWork
+  ) {
+    const c = work.content ?? {};
+
+    if (stage.id === 1) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <Field label="Nombre" value={c.project_name} />
+          <Field label="Integrantes" value={c.members} />
+          <div>
+            <strong>Logo:</strong>{" "}
+            {c.logo_path ? "✅ cargado" : "❌ no cargado"}
+          </div>
+          {c.logo_path && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                openAsset(String(c.logo_path))
+              }
+            >
+              Ver logo
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (stage.id === 2) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <Field label="Problema" value={c.problem} />
+          <Field
+            label="Beneficiarios"
+            value={c.beneficiaries}
+          />
+          <Field label="Solución" value={c.solution} />
+          <Field label="Objetivo" value={c.objective} />
+          <Field label="Uso de IA" value={c.ai_use} />
+          <Field
+            label="Limitaciones"
+            value={c.limitations}
+          />
+          <Field
+            label="Tecnologías"
+            value={c.technologies}
+          />
+
+          <div>
+            <strong>Esquema:</strong>{" "}
+            {c.scheme_path ? "✅ cargado" : "❌ no cargado"}
+          </div>
+
+          {c.scheme_path && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                openAsset(String(c.scheme_path))
+              }
+            >
+              Ver esquema
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (stage.id === 3) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <Field
+            label="Tipo de recurso"
+            value={c.resource_type}
+          />
+          <Field
+            label="Descripción"
+            value={c.description}
+          />
+          <Field
+            label="Origen o fuente"
+            value={c.source_origin}
+          />
+          <Field
+            label="Organización / clases"
+            value={c.organization_classes}
+          />
+          <Field
+            label="Cantidad / tamaño"
+            value={c.quantity_size}
+          />
+          <Field
+            label="Método de obtención"
+            value={c.collection_method}
+          />
+          <Field
+            label="Preparación / limpieza"
+            value={c.preparation}
+          />
+          <Field
+            label="Limitaciones / sesgos"
+            value={c.limitations}
+          />
+
+          {c.resource_url ? (
+            <a
+              href={String(c.resource_url)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#4338ca",
+                fontWeight: 700,
+              }}
+            >
+              Abrir datos / contenido ↗
+            </a>
+          ) : (
+            <div>❌ No se adjuntó enlace al recurso.</div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   }
 
   return (
@@ -749,7 +865,6 @@ export default function HomePage() {
           <span className="brand-mark">
             <Sparkles />
           </span>
-
           <div>
             <strong>Atenas IA Lab</strong>
             <small>Inteligencia Artificial II</small>
@@ -786,7 +901,6 @@ export default function HomePage() {
           <button className="nav-item">
             <ListChecks />
             <span>Revisiones</span>
-
             {pendingTotal > 0 && (
               <span className="nav-count">
                 {pendingTotal}
@@ -799,14 +913,12 @@ export default function HomePage() {
           <span>💡</span>
           <strong>Evaluación</strong>
           <p>
-            Cada etapa vale hasta 4 puntos.
-            Total: 20.
+            Cada etapa vale hasta 4 puntos. Total: 20.
           </p>
         </div>
 
         <div className="teacher">
           <div className="teacher-avatar">KP</div>
-
           <div>
             <strong>{teacherName}</strong>
             <small>Administrador</small>
@@ -826,7 +938,6 @@ export default function HomePage() {
 
           <label className="search-box">
             <Search />
-
             <input
               value={query}
               onChange={(event) =>
@@ -859,25 +970,17 @@ export default function HomePage() {
               <p className="eyebrow">
                 Atenas IA Lab · Panel del profesor
               </p>
-
-              <h1>
-                ¡Hola, {teacherName}! 👋
-              </h1>
-
+              <h1>¡Hola, {teacherName}! 👋</h1>
               <p>
-                Revisa, califica y acompaña el
-                avance de cada proyecto.
+                Revisa, califica y acompaña el avance de cada
+                proyecto.
               </p>
             </div>
 
             <div className="class-chip">
-              <span>
-                Inteligencia Artificial II
-              </span>
-
+              <span>Inteligencia Artificial II</span>
               <strong>
-                {groups.length} grupos ·{" "}
-                {activeCount} activos
+                {groups.length} grupos · {activeCount} activos
               </strong>
             </div>
           </section>
@@ -897,12 +1000,10 @@ export default function HomePage() {
               <span className="summary-icon purple">
                 <FolderKanban />
               </span>
-
               <div>
                 <small>Grupos activos</small>
                 <strong>{activeCount}</strong>
               </div>
-
               <em>de {groups.length}</em>
             </article>
 
@@ -910,14 +1011,10 @@ export default function HomePage() {
               <span className="summary-icon blue">
                 <LayoutGrid />
               </span>
-
               <div>
                 <small>Avance promedio</small>
-                <strong>
-                  {averageProgress}%
-                </strong>
+                <strong>{averageProgress}%</strong>
               </div>
-
               <em>Calculado por nota</em>
             </article>
 
@@ -925,15 +1022,10 @@ export default function HomePage() {
               <span className="summary-icon orange">
                 <ListChecks />
               </span>
-
               <div>
-                <small>
-                  Entregas por revisar
-                </small>
-
+                <small>Entregas por revisar</small>
                 <strong>{pendingTotal}</strong>
               </div>
-
               <em>Requieren atención</em>
             </article>
           </section>
@@ -946,10 +1038,8 @@ export default function HomePage() {
             <div className="section-heading">
               <div>
                 <h2>Grupos del curso</h2>
-
                 <p>
-                  Abre un grupo para revisar
-                  sus cinco etapas.
+                  Abre un grupo para revisar sus cinco etapas.
                 </p>
               </div>
 
@@ -957,18 +1047,15 @@ export default function HomePage() {
                 <TabsTrigger value="todos">
                   Todos
                 </TabsTrigger>
-
                 <TabsTrigger value="activos">
                   Activos
                 </TabsTrigger>
-
                 <TabsTrigger value="revision">
                   Revisar
                   {pendingTotal > 0
                     ? ` (${pendingTotal})`
                     : ""}
                 </TabsTrigger>
-
                 <TabsTrigger value="final">
                   Finalizados
                 </TabsTrigger>
@@ -1050,7 +1137,6 @@ export default function HomePage() {
                       (activeGroup.id - 1) %
                         CARD_COLORS.length
                     ].accent,
-
                   "--soft":
                     CARD_COLORS[
                       (activeGroup.id - 1) %
@@ -1069,12 +1155,10 @@ export default function HomePage() {
 
               <div>
                 <p>Grupo {activeGroup.id}</p>
-
                 <h2>
                   {activeGroup.project_name ||
                     "Proyecto aún sin nombre"}
                 </h2>
-
                 <small>
                   {activeGroup.members ||
                     "Integrantes sin definir"}
@@ -1085,13 +1169,11 @@ export default function HomePage() {
             <div className="detail-progress">
               <div>
                 <span>Nota y progreso</span>
-
                 <strong>
                   {activeGroup.grade}/20 ·{" "}
                   {activeGroup.progress}%
                 </strong>
               </div>
-
               <Progress
                 value={activeGroup.progress}
               />
@@ -1107,11 +1189,8 @@ export default function HomePage() {
 
                 if (!work) return null;
 
-                const status =
-                  work.status ?? "locked";
-
                 const info =
-                  STATUS_INFO[status];
+                  STATUS_INFO[work.status];
 
                 return (
                   <div
@@ -1124,7 +1203,7 @@ export default function HomePage() {
                   >
                     <div
                       className={
-                        status === "approved"
+                        work.status === "approved"
                           ? "stage-row done"
                           : "stage-row"
                       }
@@ -1133,14 +1212,11 @@ export default function HomePage() {
 
                       <div style={{ flex: 1 }}>
                         <strong>
-                          Etapa {stage.id} ·{" "}
-                          {stage.name}
+                          Etapa {stage.id} · {stage.name}
                         </strong>
-
                         <small>
                           {info.label} ·{" "}
-                          {numeric(work.score)}/4
-                          puntos
+                          {numeric(work.score)}/4 puntos
                         </small>
 
                         {work.submitted_at && (
@@ -1175,13 +1251,12 @@ export default function HomePage() {
                         )}
 
                         {work.teacher_comment &&
-                          status !== "submitted" && (
+                          work.status !== "submitted" && (
                             <div
                               style={{
                                 marginTop: 8,
                                 padding: 10,
-                                background:
-                                  "#f3f4f6",
+                                background: "#f3f4f6",
                                 borderRadius: 10,
                                 fontSize: 13,
                               }}
@@ -1195,7 +1270,7 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {status === "submitted" && (
+                    {work.status === "submitted" && (
                       <div
                         style={{
                           border:
@@ -1222,201 +1297,11 @@ export default function HomePage() {
                             margin: "0 0 15px",
                           }}
                         >
-                          Evalúa esta etapa. Si
-                          la apruebas, la siguiente
-                          se desbloqueará
-                          automáticamente.
+                          Evalúa esta etapa. Si la apruebas, la
+                          siguiente se desbloqueará automáticamente.
                         </p>
 
-                        {stage.id === 1 && (
-                          <div
-                            style={{
-                              display: "grid",
-                              gap: 8,
-                              background: "white",
-                              borderRadius: 12,
-                              padding: 13,
-                              marginBottom: 15,
-                            }}
-                          >
-                            <div>
-                              <strong>
-                                Nombre:
-                              </strong>{" "}
-                              {String(
-                                work.content
-                                  ?.project_name ??
-                                  "—"
-                              )}
-                            </div>
-
-                            <div>
-                              <strong>
-                                Integrantes:
-                              </strong>{" "}
-                              {String(
-                                work.content
-                                  ?.members ?? "—"
-                              )}
-                            </div>
-
-                            <div>
-                              <strong>
-                                Logo:
-                              </strong>{" "}
-                              {work.content
-                                ?.logo_path
-                                ? "✅ cargado"
-                                : "❌ no cargado"}
-                            </div>
-
-                            {work.content
-                              ?.logo_path && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  openAsset(
-                                    String(
-                                      work.content
-                                        .logo_path
-                                    )
-                                  )
-                                }
-                              >
-                                Ver logo
-                              </Button>
-                            )}
-                          </div>
-                        )}
-
-                        {stage.id === 2 && (
-                          <div
-                            style={{
-                              display: "grid",
-                              gap: 10,
-                              background: "white",
-                              borderRadius: 12,
-                              padding: 13,
-                              marginBottom: 15,
-                            }}
-                          >
-                            <div>
-                              <strong>
-                                Problema:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.problem ?? "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Beneficiarios:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.beneficiaries ??
-                                    "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Solución:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.solution ?? "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Objetivo:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.objective ?? "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Uso de IA:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.ai_use ?? "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Limitaciones:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.limitations ??
-                                    "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Tecnologías:
-                              </strong>
-                              <p>
-                                {String(
-                                  work.content
-                                    ?.technologies ??
-                                    "—"
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <strong>
-                                Esquema:
-                              </strong>{" "}
-                              {work.content
-                                ?.scheme_path
-                                ? "✅ cargado"
-                                : "❌ no cargado"}
-                            </div>
-
-                            {work.content
-                              ?.scheme_path && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                  openAsset(
-                                    String(
-                                      work.content
-                                        .scheme_path
-                                    )
-                                  )
-                                }
-                              >
-                                Ver esquema
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                        {renderSubmission(stage, work)}
 
                         <div
                           style={{
@@ -1434,7 +1319,6 @@ export default function HomePage() {
                             }}
                           >
                             <strong>Nota /4</strong>
-
                             <input
                               type="number"
                               min="0"
@@ -1455,8 +1339,7 @@ export default function HomePage() {
                                   (current) => ({
                                     ...current,
                                     [stage.id]:
-                                      event.target
-                                        .value,
+                                      event.target.value,
                                   })
                                 )
                               }
@@ -1476,10 +1359,7 @@ export default function HomePage() {
                               gap: 6,
                             }}
                           >
-                            <strong>
-                              Comentario
-                            </strong>
-
+                            <strong>Comentario</strong>
                             <textarea
                               rows={3}
                               value={
@@ -1494,8 +1374,7 @@ export default function HomePage() {
                                   (current) => ({
                                     ...current,
                                     [stage.id]:
-                                      event.target
-                                        .value,
+                                      event.target.value,
                                   })
                                 )
                               }
@@ -1514,8 +1393,7 @@ export default function HomePage() {
                         <div
                           style={{
                             display: "flex",
-                            justifyContent:
-                              "flex-end",
+                            justifyContent: "flex-end",
                             gap: 8,
                             flexWrap: "wrap",
                           }}
@@ -1524,8 +1402,7 @@ export default function HomePage() {
                             type="button"
                             variant="outline"
                             disabled={
-                              reviewingStage ===
-                              stage.id
+                              reviewingStage === stage.id
                             }
                             onClick={() =>
                               reviewStage(
@@ -1542,8 +1419,7 @@ export default function HomePage() {
                             type="button"
                             variant="outline"
                             disabled={
-                              reviewingStage ===
-                              stage.id
+                              reviewingStage === stage.id
                             }
                             onClick={() =>
                               reviewStage(
@@ -1562,8 +1438,7 @@ export default function HomePage() {
                           <Button
                             type="button"
                             disabled={
-                              reviewingStage ===
-                              stage.id
+                              reviewingStage === stage.id
                             }
                             onClick={() =>
                               reviewStage(
