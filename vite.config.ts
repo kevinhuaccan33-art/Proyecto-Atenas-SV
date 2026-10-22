@@ -3,6 +3,13 @@ import { defineConfig } from "vite";
 
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
+const cloudflareConfig = {
+  main: "./worker/index.ts",
+  compatibility_flags: ["nodejs_compat"],
+  d1_databases: [],
+  r2_buckets: [],
+};
+
 export default defineConfig(async () => {
   process.env.WRANGLER_WRITE_LOGS ??= "false";
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/logs";
@@ -21,12 +28,12 @@ export default defineConfig(async () => {
     plugins: [
       vinext(),
       cloudflare({
-        configPath: "./wrangler.jsonc",
         viteEnvironment: {
           name: "rsc",
           childEnvironments: ["ssr"],
         },
         inspectorPort: false,
+        config: cloudflareConfig,
       }),
     ],
   };
