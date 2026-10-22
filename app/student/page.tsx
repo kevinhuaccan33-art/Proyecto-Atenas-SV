@@ -11,8 +11,10 @@ import {
 import {
   CheckCircle2,
   ChevronRight,
+  Database,
   FileText,
   ImagePlus,
+  Link as LinkIcon,
   Lock,
   LogOut,
   RefreshCw,
@@ -80,35 +82,30 @@ const STATUS_DATA: Record<
     background: "#f3f4f6",
     color: "#6b7280",
   },
-
   editable: {
     icon: "✏️",
     label: "En desarrollo",
     background: "#eef2ff",
     color: "#5145cd",
   },
-
   submitted: {
     icon: "🟡",
     label: "Esperando revisión",
     background: "#fff7e6",
     color: "#92400e",
   },
-
   correction_required: {
     icon: "🔄",
     label: "Corrección solicitada",
     background: "#fff1f2",
     color: "#be123c",
   },
-
   approved: {
     icon: "✅",
     label: "Aprobada",
     background: "#ecfdf5",
     color: "#047857",
   },
-
   rejected: {
     icon: "❌",
     label: "Rechazada",
@@ -117,14 +114,16 @@ const STATUS_DATA: Record<
   },
 };
 
-function numeric(
-  value: number | string | null | undefined
-) {
+function numeric(value: number | string | null | undefined) {
   const result = Number(value ?? 0);
+  return Number.isFinite(result) ? result : 0;
+}
 
-  return Number.isFinite(result)
-    ? result
-    : 0;
+function editable(work: StageWork | null) {
+  return (
+    work?.status === "editable" ||
+    work?.status === "correction_required"
+  );
 }
 
 function TextField({
@@ -133,28 +132,23 @@ function TextField({
   onChange,
   disabled,
   placeholder,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
   placeholder: string;
+  type?: string;
 }) {
   return (
-    <label
-      style={{
-        display: "grid",
-        gap: 7,
-      }}
-    >
+    <label style={{ display: "grid", gap: 7 }}>
       <strong>{label}</strong>
-
       <input
+        type={type}
         value={value}
         disabled={disabled}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         style={{
           minHeight: 46,
@@ -162,9 +156,7 @@ function TextField({
           borderRadius: 12,
           padding: "0 14px",
           fontSize: 15,
-          background: disabled
-            ? "#f3f4f6"
-            : "white",
+          background: disabled ? "#f3f4f6" : "white",
         }}
       />
     </label>
@@ -187,20 +179,12 @@ function TextAreaField({
   rows?: number;
 }) {
   return (
-    <label
-      style={{
-        display: "grid",
-        gap: 7,
-      }}
-    >
+    <label style={{ display: "grid", gap: 7 }}>
       <strong>{label}</strong>
-
       <textarea
         value={value}
         disabled={disabled}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         rows={rows}
         style={{
@@ -209,171 +193,215 @@ function TextAreaField({
           padding: 14,
           fontSize: 15,
           resize: "vertical",
-          background: disabled
-            ? "#f3f4f6"
-            : "white",
+          background: disabled ? "#f3f4f6" : "white",
         }}
       />
     </label>
   );
 }
 
+function StatusPill({ status }: { status: StageStatus }) {
+  const info = STATUS_DATA[status];
+  return (
+    <span
+      style={{
+        height: "fit-content",
+        borderRadius: 999,
+        padding: "8px 12px",
+        fontSize: 12,
+        fontWeight: 700,
+        background: info.background,
+        color: info.color,
+      }}
+    >
+      {info.icon} {info.label}
+    </span>
+  );
+}
+
+function LockedNotice({ previous }: { previous: number }) {
+  return (
+    <div
+      style={{
+        padding: 18,
+        borderRadius: 15,
+        background: "#f3f4f6",
+        display: "flex",
+        gap: 10,
+        alignItems: "center",
+      }}
+    >
+      <Lock />
+      <div>
+        <strong>Etapa bloqueada</strong>
+        <small
+          style={{
+            display: "block",
+            marginTop: 4,
+            color: "#6b7280",
+          }}
+        >
+          Primero debe aprobarse la Etapa {previous}.
+        </small>
+      </div>
+    </div>
+  );
+}
+
+function TeacherComment({ work }: { work: StageWork }) {
+  if (!work.teacher_comment) return null;
+
+  return (
+    <div
+      style={{
+        padding: 15,
+        borderRadius: 14,
+        marginBottom: 20,
+        background:
+          work.status === "correction_required"
+            ? "#fff1f2"
+            : "#f3f4f6",
+      }}
+    >
+      <strong>👨‍🏫 Comentario del profesor</strong>
+      <p style={{ marginBottom: 0 }}>{work.teacher_comment}</p>
+    </div>
+  );
+}
+
+function FrozenNotice({
+  work,
+  approvedMessage,
+}: {
+  work: StageWork;
+  approvedMessage: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "#f8fafc",
+        borderRadius: 14,
+        padding: 15,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      {work.status === "approved" ? (
+        <CheckCircle2 color="#059669" />
+      ) : (
+        <Lock color="#6b7280" />
+      )}
+      <div>
+        <strong>
+          {work.status === "approved"
+            ? `${approvedMessage} · ${numeric(work.score)}/4`
+            : "Entrega bloqueada"}
+        </strong>
+        <small
+          style={{
+            display: "block",
+            marginTop: 4,
+            color: "#6b7280",
+          }}
+        >
+          {work.status === "submitted"
+            ? "El profesor está revisando esta entrega."
+            : work.status === "approved"
+            ? "La siguiente etapa está habilitada."
+            : "Espera las indicaciones del profesor."}
+        </small>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentPage() {
-  const [authReady, setAuthReady] =
-    useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [savingStage, setSavingStage] = useState<number | null>(null);
+  const [uploadingStage, setUploadingStage] = useState<number | null>(null);
+  const [message, setMessage] = useState("");
+  const [displayName, setDisplayName] = useState("Estudiante");
+  const [group, setGroup] = useState<GroupData | null>(null);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [works, setWorks] = useState<StageWork[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  // Etapa 1
+  const [projectName, setProjectName] = useState("");
+  const [members, setMembers] = useState("");
+  const [logoPath, setLogoPath] = useState("");
+  const [logoPreview, setLogoPreview] = useState("");
+  const [stage1Comment, setStage1Comment] = useState("");
 
-  const [saving, setSaving] =
-    useState(false);
+  // Etapa 2
+  const [problem, setProblem] = useState("");
+  const [beneficiaries, setBeneficiaries] = useState("");
+  const [solution, setSolution] = useState("");
+  const [objective, setObjective] = useState("");
+  const [aiUse, setAiUse] = useState("");
+  const [limitations, setLimitations] = useState("");
+  const [technologies, setTechnologies] = useState("");
+  const [schemePath, setSchemePath] = useState("");
+  const [schemeUrl, setSchemeUrl] = useState("");
+  const [stage2Comment, setStage2Comment] = useState("");
 
-  const [uploading, setUploading] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [displayName, setDisplayName] =
-    useState("Estudiante");
-
-  const [group, setGroup] =
-    useState<GroupData | null>(null);
-
-  const [stages, setStages] =
-    useState<Stage[]>([]);
-
-  const [works, setWorks] =
-    useState<StageWork[]>([]);
-
-  // ETAPA 1
-
-  const [projectName, setProjectName] =
-    useState("");
-
-  const [members, setMembers] =
-    useState("");
-
-  const [logoPath, setLogoPath] =
-    useState("");
-
-  const [logoPreview, setLogoPreview] =
-    useState("");
-
-  const [stage1Comment, setStage1Comment] =
-    useState("");
-
-  // ETAPA 2
-
-  const [problem, setProblem] =
-    useState("");
-
-  const [beneficiaries, setBeneficiaries] =
-    useState("");
-
-  const [solution, setSolution] =
-    useState("");
-
-  const [objective, setObjective] =
-    useState("");
-
-  const [aiUse, setAiUse] =
-    useState("");
-
-  const [limitations, setLimitations] =
-    useState("");
-
-  const [technologies, setTechnologies] =
-    useState("");
-
-  const [schemePath, setSchemePath] =
-    useState("");
-
-  const [schemeUrl, setSchemeUrl] =
-    useState("");
-
-  const [stage2Comment, setStage2Comment] =
-    useState("");
+  // Etapa 3
+  const [resourceType, setResourceType] = useState("dataset");
+  const [dataDescription, setDataDescription] = useState("");
+  const [sourceOrigin, setSourceOrigin] = useState("");
+  const [organizationClasses, setOrganizationClasses] = useState("");
+  const [dataQuantity, setDataQuantity] = useState("");
+  const [collectionMethod, setCollectionMethod] = useState("");
+  const [dataPreparation, setDataPreparation] = useState("");
+  const [dataLimitations, setDataLimitations] = useState("");
+  const [resourceUrl, setResourceUrl] = useState("");
+  const [stage3Comment, setStage3Comment] = useState("");
 
   const stage1 = useMemo(
-    () =>
-      works.find(
-        (work) => work.stage_id === 1
-      ) ?? null,
+    () => works.find((work) => work.stage_id === 1) ?? null,
     [works]
   );
-
   const stage2 = useMemo(
-    () =>
-      works.find(
-        (work) => work.stage_id === 2
-      ) ?? null,
+    () => works.find((work) => work.stage_id === 2) ?? null,
+    [works]
+  );
+  const stage3 = useMemo(
+    () => works.find((work) => work.stage_id === 3) ?? null,
     [works]
   );
 
   const grade = useMemo(
     () =>
       works
-        .filter(
-          (work) =>
-            work.status === "approved"
-        )
-        .reduce(
-          (total, work) =>
-            total + numeric(work.score),
-          0
-        ),
+        .filter((work) => work.status === "approved")
+        .reduce((total, work) => total + numeric(work.score), 0),
     [works]
   );
 
-  const progress =
-    Math.round(grade * 5 * 10) / 10;
-
-  const stage1Editable =
-    stage1?.status === "editable" ||
-    stage1?.status ===
-      "correction_required";
-
-  const stage2Editable =
-    stage2?.status === "editable" ||
-    stage2?.status ===
-      "correction_required";
+  const progress = Math.round(grade * 5 * 10) / 10;
 
   useEffect(() => {
     let mounted = true;
 
     async function verifyStudent() {
       try {
-        const supabase =
-          await getSupabase();
-
-        const { data: sessionData } =
-          await supabase.auth.getSession();
-
-        const user =
-          sessionData.session?.user;
+        const supabase = await getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData.session?.user;
 
         if (!user) {
           window.location.replace("/login");
           return;
         }
 
-        const {
-          data: profile,
-          error,
-        } = await supabase
+        const { data: profile, error } = await supabase
           .from("profiles")
-          .select(
-            "display_name, role, group_id, active"
-          )
+          .select("display_name, role, group_id, active")
           .eq("id", user.id)
           .single();
 
-        if (
-          error ||
-          !profile ||
-          !profile.active
-        ) {
+        if (error || !profile || !profile.active) {
           await supabase.auth.signOut();
           window.location.replace("/login");
           return;
@@ -384,21 +412,14 @@ export default function StudentPage() {
           return;
         }
 
-        if (
-          profile.role !== "student" ||
-          !profile.group_id
-        ) {
+        if (profile.role !== "student" || !profile.group_id) {
           await supabase.auth.signOut();
           window.location.replace("/login");
           return;
         }
 
         if (mounted) {
-          setDisplayName(
-            profile.display_name ||
-              "Estudiante"
-          );
-
+          setDisplayName(profile.display_name || "Estudiante");
           setAuthReady(true);
         }
       } catch (error) {
@@ -414,43 +435,28 @@ export default function StudentPage() {
     };
   }, []);
 
-  async function createFileUrl(
-    path: string
-  ) {
+  async function createFileUrl(path: string) {
     if (!path) return "";
 
     try {
-      const supabase =
-        await getSupabase();
+      const supabase = await getSupabase();
+      const { data, error } = await supabase.storage
+        .from("project-assets")
+        .createSignedUrl(path, 3600);
 
-      const { data, error } =
-        await supabase.storage
-          .from("project-assets")
-          .createSignedUrl(path, 3600);
-
-      if (
-        error ||
-        !data?.signedUrl
-      ) {
-        return "";
-      }
-
+      if (error || !data?.signedUrl) return "";
       return data.signedUrl;
     } catch {
       return "";
     }
   }
 
-  async function loadStudentData() {
-    setLoading(true);
+  async function loadStudentData(showSpinner = false) {
+    if (showSpinner) setInitialLoading(true);
 
     try {
-      const supabase =
-        await getSupabase();
-
-      const { data: userData } =
-        await supabase.auth.getUser();
-
+      const supabase = await getSupabase();
+      const { data: userData } = await supabase.auth.getUser();
       const user = userData.user;
 
       if (!user) {
@@ -458,32 +464,21 @@ export default function StudentPage() {
         return;
       }
 
-      const {
-        data: profile,
-        error: profileError,
-      } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("group_id")
         .eq("id", user.id)
         .single();
 
-      if (
-        profileError ||
-        !profile?.group_id
-      ) {
+      if (profileError || !profile?.group_id) {
         throw new Error(
           "No encontramos un grupo asignado a esta cuenta."
         );
       }
 
-      const groupId =
-        Number(profile.group_id);
+      const groupId = Number(profile.group_id);
 
-      const [
-        groupResult,
-        stagesResult,
-        workResult,
-      ] = await Promise.all([
+      const [groupResult, stagesResult, workResult] = await Promise.all([
         supabase
           .from("groups")
           .select(`
@@ -506,9 +501,7 @@ export default function StudentPage() {
             description,
             milestone_percent
           `)
-          .order("id", {
-            ascending: true,
-          }),
+          .order("id", { ascending: true }),
 
         supabase
           .from("group_stage_work")
@@ -526,22 +519,12 @@ export default function StudentPage() {
             reviewed_at
           `)
           .eq("group_id", groupId)
-          .order("stage_id", {
-            ascending: true,
-          }),
+          .order("stage_id", { ascending: true }),
       ]);
 
-      if (groupResult.error) {
-        throw groupResult.error;
-      }
-
-      if (stagesResult.error) {
-        throw stagesResult.error;
-      }
-
-      if (workResult.error) {
-        throw workResult.error;
-      }
+      if (groupResult.error) throw groupResult.error;
+      if (stagesResult.error) throw stagesResult.error;
+      if (workResult.error) throw workResult.error;
 
       if (!groupResult.data) {
         throw new Error(
@@ -549,34 +532,16 @@ export default function StudentPage() {
         );
       }
 
-      const loadedGroup =
-        groupResult.data as GroupData;
-
-      const loadedWorks =
-        (workResult.data ??
-          []) as StageWork[];
+      const loadedGroup = groupResult.data as GroupData;
+      const loadedWorks = (workResult.data ?? []) as StageWork[];
 
       setGroup(loadedGroup);
-
-      setStages(
-        (stagesResult.data ??
-          []) as Stage[]
-      );
-
+      setStages((stagesResult.data ?? []) as Stage[]);
       setWorks(loadedWorks);
 
-      // ETAPA 1
-
-      const identity =
-        loadedWorks.find(
-          (work) =>
-            work.stage_id === 1
-        );
-
+      const identity = loadedWorks.find((work) => work.stage_id === 1);
       const identityContent =
-        identity?.content &&
-        typeof identity.content ===
-          "object"
+        identity?.content && typeof identity.content === "object"
           ? identity.content
           : {};
 
@@ -587,233 +552,124 @@ export default function StudentPage() {
             ""
         )
       );
-
       setMembers(
-        String(
-          identityContent.members ??
-            loadedGroup.members ??
-            ""
-        )
+        String(identityContent.members ?? loadedGroup.members ?? "")
       );
 
-      const currentLogo =
-        String(
-          identityContent.logo_path ??
-            loadedGroup.logo_path ??
-            ""
-        );
+      const currentLogo = String(
+        identityContent.logo_path ?? loadedGroup.logo_path ?? ""
+      );
 
       setLogoPath(currentLogo);
+      setStage1Comment(identity?.student_comment ?? "");
+      setLogoPreview(currentLogo ? await createFileUrl(currentLogo) : "");
 
-      setStage1Comment(
-        identity?.student_comment ?? ""
-      );
-
-      if (currentLogo) {
-        setLogoPreview(
-          await createFileUrl(
-            currentLogo
-          )
-        );
-      } else {
-        setLogoPreview("");
-      }
-
-      // ETAPA 2
-
-      const canvas =
-        loadedWorks.find(
-          (work) =>
-            work.stage_id === 2
-        );
-
+      const canvas = loadedWorks.find((work) => work.stage_id === 2);
       const canvasContent =
-        canvas?.content &&
-        typeof canvas.content ===
-          "object"
+        canvas?.content && typeof canvas.content === "object"
           ? canvas.content
           : {};
 
-      setProblem(
-        String(
-          canvasContent.problem ?? ""
-        )
-      );
+      setProblem(String(canvasContent.problem ?? ""));
+      setBeneficiaries(String(canvasContent.beneficiaries ?? ""));
+      setSolution(String(canvasContent.solution ?? ""));
+      setObjective(String(canvasContent.objective ?? ""));
+      setAiUse(String(canvasContent.ai_use ?? ""));
+      setLimitations(String(canvasContent.limitations ?? ""));
+      setTechnologies(String(canvasContent.technologies ?? ""));
 
-      setBeneficiaries(
-        String(
-          canvasContent.beneficiaries ??
-            ""
-        )
-      );
-
-      setSolution(
-        String(
-          canvasContent.solution ?? ""
-        )
-      );
-
-      setObjective(
-        String(
-          canvasContent.objective ?? ""
-        )
-      );
-
-      setAiUse(
-        String(
-          canvasContent.ai_use ?? ""
-        )
-      );
-
-      setLimitations(
-        String(
-          canvasContent.limitations ??
-            ""
-        )
-      );
-
-      setTechnologies(
-        String(
-          canvasContent.technologies ??
-            ""
-        )
-      );
-
-      const currentScheme =
-        String(
-          canvasContent.scheme_path ??
-            ""
-        );
-
+      const currentScheme = String(canvasContent.scheme_path ?? "");
       setSchemePath(currentScheme);
-
-      setStage2Comment(
-        canvas?.student_comment ?? ""
+      setStage2Comment(canvas?.student_comment ?? "");
+      setSchemeUrl(
+        currentScheme ? await createFileUrl(currentScheme) : ""
       );
 
-      if (currentScheme) {
-        setSchemeUrl(
-          await createFileUrl(
-            currentScheme
-          )
-        );
-      } else {
-        setSchemeUrl("");
-      }
+      const dataStage = loadedWorks.find((work) => work.stage_id === 3);
+      const dataContent =
+        dataStage?.content && typeof dataStage.content === "object"
+          ? dataStage.content
+          : {};
+
+      setResourceType(String(dataContent.resource_type ?? "dataset"));
+      setDataDescription(String(dataContent.description ?? ""));
+      setSourceOrigin(String(dataContent.source_origin ?? ""));
+      setOrganizationClasses(
+        String(dataContent.organization_classes ?? "")
+      );
+      setDataQuantity(String(dataContent.quantity_size ?? ""));
+      setCollectionMethod(
+        String(dataContent.collection_method ?? "")
+      );
+      setDataPreparation(String(dataContent.preparation ?? ""));
+      setDataLimitations(String(dataContent.limitations ?? ""));
+      setResourceUrl(String(dataContent.resource_url ?? ""));
+      setStage3Comment(dataStage?.student_comment ?? "");
     } catch (error) {
-      console.error(
-        "Error cargando grupo:",
-        error
-      );
-
+      console.error("Error cargando grupo:", error);
       setMessage(
         error instanceof Error
           ? error.message
           : "No se pudo cargar el grupo."
       );
     } finally {
-      setLoading(false);
+      if (showSpinner) setInitialLoading(false);
     }
   }
 
   useEffect(() => {
     if (!authReady) return;
-    loadStudentData();
+    loadStudentData(true);
   }, [authReady]);
 
-  async function uploadStageFile(
-    file: File,
-    stageId: number
-  ) {
-    if (!group) {
-      throw new Error(
-        "No hay grupo disponible."
-      );
-    }
+  async function uploadStageFile(file: File, stageId: number) {
+    if (!group) throw new Error("No hay grupo disponible.");
 
     const extension =
-      file.name
-        .split(".")
-        .pop()
-        ?.toLowerCase() || "file";
+      file.name.split(".").pop()?.toLowerCase() || "file";
+    const fileName = `${crypto.randomUUID()}.${extension}`;
+    const path = `${group.id}/${stageId}/${fileName}`;
 
-    const fileName =
-      `${crypto.randomUUID()}.${extension}`;
-
-    const path =
-      `${group.id}/${stageId}/${fileName}`;
-
-    const supabase =
-      await getSupabase();
-
-    const { error } =
-      await supabase.storage
-        .from("project-assets")
-        .upload(path, file, {
-          upsert: false,
-          contentType: file.type,
-        });
+    const supabase = await getSupabase();
+    const { error } = await supabase.storage
+      .from("project-assets")
+      .upload(path, file, {
+        upsert: false,
+        contentType: file.type,
+      });
 
     if (error) throw error;
-
     return path;
   }
 
   async function uploadLogo(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const file =
-      event.target.files?.[0];
-
+    const file = event.target.files?.[0];
     if (!file || !group) return;
 
     setMessage("");
 
-    const allowed = [
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-    ];
-
+    const allowed = ["image/png", "image/jpeg", "image/webp"];
     if (!allowed.includes(file.type)) {
-      setMessage(
-        "El logo debe ser PNG, JPG o WebP."
-      );
-
+      setMessage("El logo debe ser PNG, JPG o WebP.");
       event.target.value = "";
       return;
     }
 
-    if (
-      file.size >
-      5 * 1024 * 1024
-    ) {
-      setMessage(
-        "El logo no puede superar 5 MB."
-      );
-
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("El logo no puede superar 5 MB.");
       event.target.value = "";
       return;
     }
 
-    setUploading(true);
+    setUploadingStage(1);
 
     try {
-      const path =
-        await uploadStageFile(
-          file,
-          1
-        );
-
+      const path = await uploadStageFile(file, 1);
       setLogoPath(path);
-
-      setLogoPreview(
-        URL.createObjectURL(file)
-      );
-
-      setMessage(
-        "Logo cargado correctamente."
-      );
+      setLogoPreview(URL.createObjectURL(file));
+      setMessage("Logo cargado correctamente.");
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -821,7 +677,7 @@ export default function StudentPage() {
           : "No se pudo subir el logo."
       );
     } finally {
-      setUploading(false);
+      setUploadingStage(null);
       event.target.value = "";
     }
   }
@@ -829,9 +685,7 @@ export default function StudentPage() {
   async function uploadScheme(
     event: ChangeEvent<HTMLInputElement>
   ) {
-    const file =
-      event.target.files?.[0];
-
+    const file = event.target.files?.[0];
     if (!file || !group) return;
 
     setMessage("");
@@ -844,53 +698,30 @@ export default function StudentPage() {
     ];
 
     if (!allowed.includes(file.type)) {
-      setMessage(
-        "El esquema debe ser PNG, JPG, WebP o PDF."
-      );
-
+      setMessage("El esquema debe ser PNG, JPG, WebP o PDF.");
       event.target.value = "";
       return;
     }
 
-    if (
-      file.size >
-      10 * 1024 * 1024
-    ) {
-      setMessage(
-        "El archivo no puede superar 10 MB."
-      );
-
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage("El archivo no puede superar 10 MB.");
       event.target.value = "";
       return;
     }
 
-    setUploading(true);
+    setUploadingStage(2);
 
     try {
-      const path =
-        await uploadStageFile(
-          file,
-          2
-        );
-
+      const path = await uploadStageFile(file, 2);
       setSchemePath(path);
 
-      if (
-        file.type ===
-        "application/pdf"
-      ) {
-        setSchemeUrl(
-          await createFileUrl(path)
-        );
+      if (file.type === "application/pdf") {
+        setSchemeUrl(await createFileUrl(path));
       } else {
-        setSchemeUrl(
-          URL.createObjectURL(file)
-        );
+        setSchemeUrl(URL.createObjectURL(file));
       }
 
-      setMessage(
-        "Esquema cargado correctamente."
-      );
+      setMessage("Esquema cargado correctamente.");
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -898,182 +729,125 @@ export default function StudentPage() {
           : "No se pudo subir el esquema."
       );
     } finally {
-      setUploading(false);
+      setUploadingStage(null);
       event.target.value = "";
     }
   }
 
-  async function saveIdentity(
+  async function updateStage(
+    stageId: number,
+    content: Record<string, any>,
+    studentComment: string,
     submit: boolean
   ) {
-    if (!group || !stage1) return;
+    if (!group) return;
 
-    if (!stage1Editable) {
+    setSavingStage(stageId);
+    setMessage("");
+
+    try {
+      const supabase = await getSupabase();
+
+      const payload: Record<string, any> = {
+        content,
+        student_comment: studentComment.trim(),
+      };
+
+      if (submit) payload.status = "submitted";
+
+      const { error } = await supabase
+        .from("group_stage_work")
+        .update(payload)
+        .eq("group_id", group.id)
+        .eq("stage_id", stageId);
+
+      if (error) throw error;
+
       setMessage(
-        "La Etapa 1 está bloqueada."
+        submit
+          ? `Etapa ${stageId} enviada al profesor. Quedó bloqueada para revisión.`
+          : `Borrador de la Etapa ${stageId} guardado correctamente.`
       );
+
+      // Refresca datos sin volver a mostrar la pantalla completa de carga.
+      await loadStudentData(false);
+    } catch (error) {
+      console.error(error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : `No se pudo guardar la Etapa ${stageId}.`
+      );
+    } finally {
+      setSavingStage(null);
+    }
+  }
+
+  async function saveIdentity(submit: boolean) {
+    if (!stage1 || !editable(stage1)) {
+      setMessage("La Etapa 1 está bloqueada.");
       return;
     }
 
-    const cleanProjectName =
-      projectName.trim();
+    const cleanName = projectName.trim();
+    const cleanMembers = members.trim();
 
-    const cleanMembers =
-      members.trim();
-
-    if (
-      submit &&
-      !cleanProjectName
-    ) {
-      setMessage(
-        "Debes escribir el nombre del proyecto."
-      );
+    if (submit && !cleanName) {
+      setMessage("Debes escribir el nombre del proyecto.");
       return;
     }
 
-    if (
-      submit &&
-      !cleanMembers
-    ) {
-      setMessage(
-        "Debes indicar los integrantes."
-      );
+    if (submit && !cleanMembers) {
+      setMessage("Debes indicar los integrantes.");
       return;
     }
 
-    if (
-      submit &&
-      !logoPath
-    ) {
-      setMessage(
-        "Debes subir el logo antes de enviar."
-      );
+    if (submit && !logoPath) {
+      setMessage("Debes subir el logo antes de enviar.");
       return;
     }
 
     if (
       submit &&
       !window.confirm(
-        "¿Enviar la Etapa 1 al profesor? Después quedará bloqueada hasta que sea revisada."
+        "¿Enviar la Etapa 1 al profesor? Quedará bloqueada hasta su revisión."
       )
     ) {
       return;
     }
 
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const supabase =
-        await getSupabase();
-
-      const payload: Record<
-        string,
-        any
-      > = {
-        content: {
-          project_name:
-            cleanProjectName,
-
-          members:
-            cleanMembers,
-
-          logo_path:
-            logoPath,
-        },
-
-        student_comment:
-          stage1Comment.trim(),
-      };
-
-      if (submit) {
-        payload.status =
-          "submitted";
-      }
-
-      const { error } =
-        await supabase
-          .from("group_stage_work")
-          .update(payload)
-          .eq(
-            "group_id",
-            group.id
-          )
-          .eq("stage_id", 1);
-
-      if (error) throw error;
-
-      setMessage(
-        submit
-          ? "Etapa 1 enviada al profesor."
-          : "Borrador de Etapa 1 guardado."
-      );
-
-      await loadStudentData();
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la Etapa 1."
-      );
-    } finally {
-      setSaving(false);
-    }
+    await updateStage(
+      1,
+      {
+        project_name: cleanName,
+        members: cleanMembers,
+        logo_path: logoPath,
+      },
+      stage1Comment,
+      submit
+    );
   }
 
-  async function saveCanvas(
-    submit: boolean
-  ) {
-    if (!group || !stage2) return;
-
-    if (!stage2Editable) {
-      setMessage(
-        "La Etapa 2 está bloqueada."
-      );
+  async function saveCanvas(submit: boolean) {
+    if (!stage2 || !editable(stage2)) {
+      setMessage("La Etapa 2 está bloqueada.");
       return;
     }
 
     const fields = [
-      {
-        name: "Problema",
-        value: problem.trim(),
-      },
-      {
-        name: "Beneficiarios",
-        value: beneficiaries.trim(),
-      },
-      {
-        name: "Solución",
-        value: solution.trim(),
-      },
-      {
-        name: "Objetivo",
-        value: objective.trim(),
-      },
-      {
-        name: "Uso de IA",
-        value: aiUse.trim(),
-      },
-      {
-        name: "Limitaciones",
-        value: limitations.trim(),
-      },
-      {
-        name: "Tecnologías",
-        value: technologies.trim(),
-      },
+      ["Problema", problem],
+      ["Beneficiarios", beneficiaries],
+      ["Solución", solution],
+      ["Objetivo", objective],
+      ["Uso de IA", aiUse],
+      ["Limitaciones", limitations],
+      ["Tecnologías", technologies],
     ];
 
     if (submit) {
-      const missing =
-        fields.find(
-          (field) => !field.value
-        );
-
+      const missing = fields.find(([, value]) => !value.trim());
       if (missing) {
-        setMessage(
-          `Falta completar: ${missing.name}.`
-        );
+        setMessage(`Falta completar: ${missing[0]}.`);
         return;
       }
 
@@ -1086,101 +860,100 @@ export default function StudentPage() {
 
       if (
         !window.confirm(
-          "¿Enviar el Canvas completo al profesor? La Etapa 2 quedará bloqueada mientras se revisa."
+          "¿Enviar el Canvas completo al profesor? Quedará bloqueado mientras se revisa."
         )
       ) {
         return;
       }
     }
 
-    setSaving(true);
-    setMessage("");
-
-    try {
-      const supabase =
-        await getSupabase();
-
-      const payload: Record<
-        string,
-        any
-      > = {
-        content: {
-          problem: problem.trim(),
-
-          beneficiaries:
-            beneficiaries.trim(),
-
-          solution: solution.trim(),
-
-          objective: objective.trim(),
-
-          ai_use: aiUse.trim(),
-
-          limitations:
-            limitations.trim(),
-
-          technologies:
-            technologies.trim(),
-
-          scheme_path: schemePath,
-        },
-
-        student_comment:
-          stage2Comment.trim(),
-      };
-
-      if (submit) {
-        payload.status =
-          "submitted";
-      }
-
-      const { error } =
-        await supabase
-          .from("group_stage_work")
-          .update(payload)
-          .eq(
-            "group_id",
-            group.id
-          )
-          .eq("stage_id", 2);
-
-      if (error) throw error;
-
-      setMessage(
-        submit
-          ? "Etapa 2 enviada al profesor. Quedó bloqueada para revisión."
-          : "Borrador del Canvas guardado correctamente."
-      );
-
-      await loadStudentData();
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo guardar la Etapa 2."
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function logout() {
-    const supabase =
-      await getSupabase();
-
-    await supabase.auth.signOut();
-
-    window.location.replace(
-      "/login"
+    await updateStage(
+      2,
+      {
+        problem: problem.trim(),
+        beneficiaries: beneficiaries.trim(),
+        solution: solution.trim(),
+        objective: objective.trim(),
+        ai_use: aiUse.trim(),
+        limitations: limitations.trim(),
+        technologies: technologies.trim(),
+        scheme_path: schemePath,
+      },
+      stage2Comment,
+      submit
     );
   }
 
-  if (
-    !authReady ||
-    loading
-  ) {
+  async function saveStage3(submit: boolean) {
+    if (!stage3 || !editable(stage3)) {
+      setMessage("La Etapa 3 está bloqueada.");
+      return;
+    }
+
+    const fields = [
+      ["Descripción de datos/contenido", dataDescription],
+      ["Origen o fuente", sourceOrigin],
+      ["Organización, clases o categorías", organizationClasses],
+      ["Cantidad o tamaño", dataQuantity],
+      ["Método de obtención", collectionMethod],
+      ["Preparación o limpieza", dataPreparation],
+      ["Limitaciones, sesgos o cuidados", dataLimitations],
+    ];
+
+    if (submit) {
+      const missing = fields.find(([, value]) => !value.trim());
+
+      if (missing) {
+        setMessage(`Falta completar: ${missing[0]}.`);
+        return;
+      }
+
+      try {
+        const parsed = new URL(resourceUrl.trim());
+        if (!["https:", "http:"].includes(parsed.protocol)) {
+          throw new Error("invalid");
+        }
+      } catch {
+        setMessage(
+          "Coloca un enlace válido al dataset, carpeta de Drive o contenido."
+        );
+        return;
+      }
+
+      if (
+        !window.confirm(
+          "¿Enviar la Etapa 3 al profesor? Quedará bloqueada mientras se revisa."
+        )
+      ) {
+        return;
+      }
+    }
+
+    await updateStage(
+      3,
+      {
+        resource_type: resourceType,
+        description: dataDescription.trim(),
+        source_origin: sourceOrigin.trim(),
+        organization_classes: organizationClasses.trim(),
+        quantity_size: dataQuantity.trim(),
+        collection_method: collectionMethod.trim(),
+        preparation: dataPreparation.trim(),
+        limitations: dataLimitations.trim(),
+        resource_url: resourceUrl.trim(),
+      },
+      stage3Comment,
+      submit
+    );
+  }
+
+  async function logout() {
+    const supabase = await getSupabase();
+    await supabase.auth.signOut();
+    window.location.replace("/login");
+  }
+
+  if (!authReady || initialLoading) {
     return (
       <main
         style={{
@@ -1192,11 +965,7 @@ export default function StudentPage() {
           fontFamily: "Arial, sans-serif",
         }}
       >
-        <div
-          style={{
-            textAlign: "center",
-          }}
-        >
+        <div style={{ textAlign: "center" }}>
           <strong
             style={{
               display: "block",
@@ -1206,7 +975,6 @@ export default function StudentPage() {
           >
             Atenas IA Lab
           </strong>
-
           Cargando tu proyecto...
         </div>
       </main>
@@ -1222,12 +990,10 @@ export default function StudentPage() {
           placeItems: "center",
           background: "#f7f8fc",
           fontFamily: "Arial, sans-serif",
+          padding: 24,
         }}
       >
-        <div>
-          {message ||
-            "No hay grupo disponible."}
-        </div>
+        <div>{message || "No hay grupo disponible."}</div>
       </main>
     );
   }
@@ -1244,27 +1010,18 @@ export default function StudentPage() {
         style={{
           minHeight: 72,
           background: "white",
-          borderBottom:
-            "1px solid #e5e7eb",
+          borderBottom: "1px solid #e5e7eb",
           display: "flex",
           alignItems: "center",
-          justifyContent:
-            "space-between",
+          justifyContent: "space-between",
           gap: 20,
-          padding:
-            "12px clamp(18px,5vw,70px)",
+          padding: "12px clamp(18px,5vw,70px)",
           position: "sticky",
           top: 0,
           zIndex: 20,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span
             style={{
               width: 42,
@@ -1281,40 +1038,19 @@ export default function StudentPage() {
           </span>
 
           <div>
-            <strong
-              style={{
-                display: "block",
-                fontSize: 17,
-              }}
-            >
+            <strong style={{ display: "block", fontSize: 17 }}>
               Atenas IA Lab
             </strong>
-
-            <small
-              style={{
-                color: "#6b7280",
-              }}
-            >
+            <small style={{ color: "#6b7280" }}>
               Inteligencia Artificial II
             </small>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <UserRound size={19} />
-
           <span>{displayName}</span>
-
-          <Button
-            variant="outline"
-            onClick={logout}
-          >
+          <Button variant="outline" onClick={logout}>
             <LogOut size={17} />
             Salir
           </Button>
@@ -1346,30 +1082,16 @@ export default function StudentPage() {
               padding: 28,
             }}
           >
-            <small
-              style={{
-                opacity: 0.85,
-                fontWeight: 700,
-              }}
-            >
+            <small style={{ opacity: 0.85, fontWeight: 700 }}>
               GRUPO {group.id}
             </small>
-
-            <h1
-              style={{
-                margin: "10px 0 8px",
-                fontSize: 30,
-              }}
-            >
+            <h1 style={{ margin: "10px 0 8px", fontSize: 30 }}>
               {group.project_name ||
                 projectName ||
                 "Tu proyecto de IA"}
             </h1>
-
             <p style={{ margin: 0 }}>
-              {group.members ||
-                members ||
-                "Integrantes por definir"}
+              {group.members || members || "Integrantes por definir"}
             </p>
           </article>
 
@@ -1380,14 +1102,7 @@ export default function StudentPage() {
               padding: 28,
             }}
           >
-            <small
-              style={{
-                color: "#6b7280",
-              }}
-            >
-              NOTA ACTUAL
-            </small>
-
+            <small style={{ color: "#6b7280" }}>NOTA ACTUAL</small>
             <strong
               style={{
                 display: "block",
@@ -1397,20 +1112,10 @@ export default function StudentPage() {
             >
               {grade}/20
             </strong>
-
             <Progress value={progress} />
-
-            <p
-              style={{
-                color: "#6b7280",
-              }}
-            >
+            <p style={{ color: "#6b7280" }}>
               Progreso general:{" "}
-              <strong
-                style={{
-                  color: "#111827",
-                }}
-              >
+              <strong style={{ color: "#111827" }}>
                 {progress}%
               </strong>
             </p>
@@ -1419,9 +1124,7 @@ export default function StudentPage() {
 
         {message && (
           <button
-            onClick={() =>
-              setMessage("")
-            }
+            onClick={() => setMessage("")}
             style={{
               width: "100%",
               border: 0,
@@ -1446,22 +1149,11 @@ export default function StudentPage() {
             marginBottom: 24,
           }}
         >
-          <small
-            style={{
-              color: "#6c56d9",
-              fontWeight: 800,
-            }}
-          >
+          <small style={{ color: "#6c56d9", fontWeight: 800 }}>
             CAMINO DEL PROYECTO
           </small>
-
           <h2>Camino recorrido</h2>
-
-          <p
-            style={{
-              color: "#6b7280",
-            }}
-          >
+          <p style={{ color: "#6b7280" }}>
             Cada etapa vale hasta 4 puntos.
           </p>
 
@@ -1475,39 +1167,22 @@ export default function StudentPage() {
           >
             {stages.map((stage) => {
               const work =
-                works.find(
-                  (item) =>
-                    item.stage_id === stage.id
-                );
-
-              const status =
-                work?.status ?? "locked";
-
-              const info =
-                STATUS_DATA[status];
+                works.find((item) => item.stage_id === stage.id) ??
+                null;
+              const status: StageStatus = work?.status ?? "locked";
+              const info = STATUS_DATA[status];
 
               return (
                 <article
                   key={stage.id}
                   style={{
-                    border:
-                      "1px solid #e5e7eb",
+                    border: "1px solid #e5e7eb",
                     borderRadius: 18,
                     padding: 16,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 24,
-                    }}
-                  >
-                    {info.icon}
-                  </div>
-
-                  <small>
-                    ETAPA {stage.id}
-                  </small>
-
+                  <div style={{ fontSize: 24 }}>{info.icon}</div>
+                  <small>ETAPA {stage.id}</small>
                   <strong
                     style={{
                       display: "block",
@@ -1516,31 +1191,21 @@ export default function StudentPage() {
                   >
                     {stage.name}
                   </strong>
-
                   <span
                     style={{
-                      display:
-                        "inline-block",
+                      display: "inline-block",
                       borderRadius: 999,
                       padding: "5px 9px",
                       fontSize: 11,
                       fontWeight: 700,
-                      background:
-                        info.background,
+                      background: info.background,
                       color: info.color,
                     }}
                   >
                     {info.label}
                   </span>
-
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#6b7280",
-                    }}
-                  >
-                    {numeric(work?.score)}/4
-                    puntos
+                  <p style={{ fontSize: 12, color: "#6b7280" }}>
+                    {numeric(work?.score)}/4 puntos
                   </p>
                 </article>
               );
@@ -1560,105 +1225,38 @@ export default function StudentPage() {
             <div
               style={{
                 display: "flex",
-                justifyContent:
-                  "space-between",
+                justifyContent: "space-between",
                 gap: 15,
                 flexWrap: "wrap",
                 marginBottom: 24,
               }}
             >
               <div>
-                <small
-                  style={{
-                    color: "#6c56d9",
-                    fontWeight: 800,
-                  }}
-                >
+                <small style={{ color: "#6c56d9", fontWeight: 800 }}>
                   ETAPA 1 · 4 PUNTOS
                 </small>
-
-                <h2>
-                  Identidad del proyecto
-                </h2>
-
-                <p
-                  style={{
-                    color: "#6b7280",
-                  }}
-                >
-                  Nombre, integrantes y
-                  logo oficial.
+                <h2>Identidad del proyecto</h2>
+                <p style={{ color: "#6b7280" }}>
+                  Nombre, integrantes y logo oficial.
                 </p>
               </div>
-
-              <span
-                style={{
-                  height: "fit-content",
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background:
-                    STATUS_DATA[
-                      stage1.status
-                    ].background,
-                  color:
-                    STATUS_DATA[
-                      stage1.status
-                    ].color,
-                }}
-              >
-                {
-                  STATUS_DATA[
-                    stage1.status
-                  ].icon
-                }{" "}
-                {
-                  STATUS_DATA[
-                    stage1.status
-                  ].label
-                }
-              </span>
+              <StatusPill status={stage1.status} />
             </div>
 
-            {stage1.teacher_comment && (
-              <div
-                style={{
-                  padding: 15,
-                  borderRadius: 14,
-                  marginBottom: 18,
-                  background: "#f3f4f6",
-                }}
-              >
-                <strong>
-                  👨‍🏫 Comentario del profesor
-                </strong>
-
-                <p>
-                  {stage1.teacher_comment}
-                </p>
-              </div>
-            )}
+            <TeacherComment work={stage1} />
 
             <form
-              onSubmit={(
-                event: FormEvent<HTMLFormElement>
-              ) => {
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
                 saveIdentity(false);
               }}
-              style={{
-                display: "grid",
-                gap: 18,
-              }}
+              style={{ display: "grid", gap: 18 }}
             >
               <TextField
                 label="Nombre del proyecto"
                 value={projectName}
                 onChange={setProjectName}
-                disabled={
-                  !stage1Editable
-                }
+                disabled={!editable(stage1)}
                 placeholder="Ej. PetID AI"
               />
 
@@ -1666,17 +1264,12 @@ export default function StudentPage() {
                 label="Integrantes"
                 value={members}
                 onChange={setMembers}
-                disabled={
-                  !stage1Editable
-                }
+                disabled={!editable(stage1)}
                 placeholder="Nombres de los integrantes"
               />
 
               <div>
-                <strong>
-                  Logo del proyecto
-                </strong>
-
+                <strong>Logo del proyecto</strong>
                 <div
                   style={{
                     display: "flex",
@@ -1714,10 +1307,9 @@ export default function StudentPage() {
 
                   <label
                     style={{
-                      cursor:
-                        stage1Editable
-                          ? "pointer"
-                          : "not-allowed",
+                      cursor: editable(stage1)
+                        ? "pointer"
+                        : "not-allowed",
                     }}
                   >
                     <input
@@ -1725,27 +1317,24 @@ export default function StudentPage() {
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       disabled={
-                        !stage1Editable ||
-                        uploading
+                        !editable(stage1) || uploadingStage === 1
                       }
                       onChange={uploadLogo}
                     />
-
                     <span
                       style={{
-                        display:
-                          "inline-flex",
+                        display: "inline-flex",
                         gap: 7,
-                        alignItems:
-                          "center",
-                        border:
-                          "1px solid #d1d5db",
+                        alignItems: "center",
+                        border: "1px solid #d1d5db",
                         borderRadius: 10,
                         padding: "10px 13px",
                       }}
                     >
                       <Upload size={17} />
-                      Subir logo
+                      {uploadingStage === 1
+                        ? "Subiendo..."
+                        : "Subir logo"}
                     </span>
                   </label>
                 </div>
@@ -1755,20 +1344,17 @@ export default function StudentPage() {
                 label="Comentario para el profesor"
                 value={stage1Comment}
                 onChange={setStage1Comment}
-                disabled={
-                  !stage1Editable
-                }
+                disabled={!editable(stage1)}
                 placeholder="Comentario opcional"
                 rows={3}
               />
 
-              {stage1Editable ? (
+              {editable(stage1) ? (
                 <div
                   style={{
                     display: "flex",
                     gap: 10,
-                    justifyContent:
-                      "flex-end",
+                    justifyContent: "flex-end",
                     flexWrap: "wrap",
                   }}
                 >
@@ -1776,44 +1362,28 @@ export default function StudentPage() {
                     type="submit"
                     variant="outline"
                     disabled={
-                      saving || uploading
+                      savingStage === 1 || uploadingStage === 1
                     }
                   >
                     <FileText size={17} />
                     Guardar borrador
                   </Button>
-
                   <Button
                     type="button"
                     disabled={
-                      saving || uploading
+                      savingStage === 1 || uploadingStage === 1
                     }
-                    onClick={() =>
-                      saveIdentity(true)
-                    }
+                    onClick={() => saveIdentity(true)}
                   >
                     <Send size={17} />
                     Enviar al profesor
                   </Button>
                 </div>
               ) : (
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    padding: 14,
-                    borderRadius: 13,
-                  }}
-                >
-                  {stage1.status ===
-                  "approved"
-                    ? `✅ Etapa aprobada · ${numeric(
-                        stage1.score
-                      )}/4 puntos.`
-                    : stage1.status ===
-                      "submitted"
-                    ? "🔒 Etapa enviada. El profesor la está revisando."
-                    : "🔒 Etapa bloqueada."}
-                </div>
+                <FrozenNotice
+                  work={stage1}
+                  approvedMessage="Etapa 1 aprobada"
+                />
               )}
             </form>
           </section>
@@ -1826,216 +1396,91 @@ export default function StudentPage() {
               borderRadius: 24,
               padding: 30,
               marginBottom: 24,
-              opacity:
-                stage2.status ===
-                "locked"
-                  ? 0.72
-                  : 1,
+              opacity: stage2.status === "locked" ? 0.72 : 1,
             }}
           >
             <div
               style={{
                 display: "flex",
-                justifyContent:
-                  "space-between",
+                justifyContent: "space-between",
                 gap: 15,
                 flexWrap: "wrap",
                 marginBottom: 24,
               }}
             >
               <div>
-                <small
-                  style={{
-                    color: "#2388d9",
-                    fontWeight: 800,
-                  }}
-                >
+                <small style={{ color: "#2388d9", fontWeight: 800 }}>
                   ETAPA 2 · 4 PUNTOS
                 </small>
-
                 <h2>Canvas completo</h2>
-
-                <p
-                  style={{
-                    color: "#6b7280",
-                  }}
-                >
-                  Explica el problema, la
-                  solución y cómo utilizarán
+                <p style={{ color: "#6b7280" }}>
+                  Explica el problema, la solución y cómo utilizarán
                   inteligencia artificial.
                 </p>
               </div>
-
-              <span
-                style={{
-                  height: "fit-content",
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background:
-                    STATUS_DATA[
-                      stage2.status
-                    ].background,
-                  color:
-                    STATUS_DATA[
-                      stage2.status
-                    ].color,
-                }}
-              >
-                {
-                  STATUS_DATA[
-                    stage2.status
-                  ].icon
-                }{" "}
-                {
-                  STATUS_DATA[
-                    stage2.status
-                  ].label
-                }
-              </span>
+              <StatusPill status={stage2.status} />
             </div>
 
             {stage2.status === "locked" ? (
-              <div
-                style={{
-                  padding: 18,
-                  borderRadius: 15,
-                  background: "#f3f4f6",
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
-                <Lock />
-
-                <div>
-                  <strong>
-                    Etapa bloqueada
-                  </strong>
-
-                  <small
-                    style={{
-                      display: "block",
-                      marginTop: 4,
-                      color: "#6b7280",
-                    }}
-                  >
-                    Primero debe aprobarse
-                    la Etapa 1.
-                  </small>
-                </div>
-              </div>
+              <LockedNotice previous={1} />
             ) : (
               <>
-                {stage2.teacher_comment && (
-                  <div
-                    style={{
-                      padding: 15,
-                      borderRadius: 14,
-                      marginBottom: 20,
-                      background:
-                        stage2.status ===
-                        "correction_required"
-                          ? "#fff1f2"
-                          : "#f3f4f6",
-                    }}
-                  >
-                    <strong>
-                      👨‍🏫 Comentario del profesor
-                    </strong>
-
-                    <p>
-                      {stage2.teacher_comment}
-                    </p>
-                  </div>
-                )}
+                <TeacherComment work={stage2} />
 
                 <form
-                  onSubmit={(
-                    event: FormEvent<HTMLFormElement>
-                  ) => {
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
                     event.preventDefault();
                     saveCanvas(false);
                   }}
-                  style={{
-                    display: "grid",
-                    gap: 20,
-                  }}
+                  style={{ display: "grid", gap: 20 }}
                 >
                   <TextAreaField
                     label="1. Problema"
                     value={problem}
                     onChange={setProblem}
-                    disabled={
-                      !stage2Editable
-                    }
+                    disabled={!editable(stage2)}
                     placeholder="¿Qué problema real quieren solucionar?"
                   />
-
                   <TextAreaField
                     label="2. Beneficiarios"
                     value={beneficiaries}
-                    onChange={
-                      setBeneficiaries
-                    }
-                    disabled={
-                      !stage2Editable
-                    }
+                    onChange={setBeneficiaries}
+                    disabled={!editable(stage2)}
                     placeholder="¿Quiénes se beneficiarán de la solución?"
                   />
-
                   <TextAreaField
                     label="3. Solución propuesta"
                     value={solution}
                     onChange={setSolution}
-                    disabled={
-                      !stage2Editable
-                    }
+                    disabled={!editable(stage2)}
                     placeholder="¿Qué hará el proyecto para resolver el problema?"
                   />
-
                   <TextAreaField
                     label="4. Objetivo del proyecto"
                     value={objective}
                     onChange={setObjective}
-                    disabled={
-                      !stage2Editable
-                    }
+                    disabled={!editable(stage2)}
                     placeholder="¿Cuál es el objetivo principal?"
                   />
-
                   <TextAreaField
                     label="5. Uso de Inteligencia Artificial"
                     value={aiUse}
                     onChange={setAiUse}
-                    disabled={
-                      !stage2Editable
-                    }
+                    disabled={!editable(stage2)}
                     placeholder="¿Dónde estará la IA y qué función realizará?"
                   />
-
                   <TextAreaField
                     label="6. Limitaciones"
                     value={limitations}
-                    onChange={
-                      setLimitations
-                    }
-                    disabled={
-                      !stage2Editable
-                    }
+                    onChange={setLimitations}
+                    disabled={!editable(stage2)}
                     placeholder="¿Qué no podrá hacer el proyecto o cuáles son sus límites?"
                   />
-
                   <TextAreaField
                     label="7. Tecnologías"
                     value={technologies}
-                    onChange={
-                      setTechnologies
-                    }
-                    disabled={
-                      !stage2Editable
-                    }
+                    onChange={setTechnologies}
+                    disabled={!editable(stage2)}
                     placeholder="Ej. Python, Teachable Machine, HTML, Arduino, Google Drive..."
                   />
 
@@ -2051,8 +1496,7 @@ export default function StudentPage() {
 
                     <div
                       style={{
-                        border:
-                          "1px dashed #c7c9d4",
+                        border: "1px dashed #c7c9d4",
                         borderRadius: 17,
                         padding: 18,
                       }}
@@ -2060,8 +1504,7 @@ export default function StudentPage() {
                       {schemePath && (
                         <div
                           style={{
-                            background:
-                              "#ecfdf5",
+                            background: "#ecfdf5",
                             color: "#047857",
                             padding: 12,
                             borderRadius: 12,
@@ -2069,18 +1512,15 @@ export default function StudentPage() {
                           }}
                         >
                           ✅ Esquema cargado
-
                           {schemeUrl && (
                             <>
                               {" · "}
-
                               <a
                                 href={schemeUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={{
-                                  color:
-                                    "#4338ca",
+                                  color: "#4338ca",
                                   fontWeight: 700,
                                 }}
                               >
@@ -2093,10 +1533,9 @@ export default function StudentPage() {
 
                       <label
                         style={{
-                          cursor:
-                            stage2Editable
-                              ? "pointer"
-                              : "not-allowed",
+                          cursor: editable(stage2)
+                            ? "pointer"
+                            : "not-allowed",
                         }}
                       >
                         <input
@@ -2104,31 +1543,22 @@ export default function StudentPage() {
                           type="file"
                           accept="image/png,image/jpeg,image/webp,application/pdf"
                           disabled={
-                            !stage2Editable ||
-                            uploading
+                            !editable(stage2) || uploadingStage === 2
                           }
-                          onChange={
-                            uploadScheme
-                          }
+                          onChange={uploadScheme}
                         />
-
                         <span
                           style={{
-                            display:
-                              "inline-flex",
-                            alignItems:
-                              "center",
+                            display: "inline-flex",
+                            alignItems: "center",
                             gap: 8,
-                            border:
-                              "1px solid #d1d5db",
+                            border: "1px solid #d1d5db",
                             borderRadius: 10,
-                            padding:
-                              "10px 14px",
+                            padding: "10px 14px",
                           }}
                         >
                           <Upload size={17} />
-
-                          {uploading
+                          {uploadingStage === 2
                             ? "Subiendo..."
                             : schemePath
                             ? "Cambiar esquema"
@@ -2143,8 +1573,7 @@ export default function StudentPage() {
                           marginTop: 8,
                         }}
                       >
-                        PNG, JPG, WebP o PDF ·
-                        máximo 10 MB
+                        PNG, JPG, WebP o PDF · máximo 10 MB
                       </small>
                     </div>
                   </div>
@@ -2152,22 +1581,17 @@ export default function StudentPage() {
                   <TextAreaField
                     label="Comentario para el profesor"
                     value={stage2Comment}
-                    onChange={
-                      setStage2Comment
-                    }
-                    disabled={
-                      !stage2Editable
-                    }
+                    onChange={setStage2Comment}
+                    disabled={!editable(stage2)}
                     placeholder="Comentario opcional sobre el Canvas."
                     rows={3}
                   />
 
-                  {stage2Editable ? (
+                  {editable(stage2) ? (
                     <div
                       style={{
                         display: "flex",
-                        justifyContent:
-                          "flex-end",
+                        justifyContent: "flex-end",
                         gap: 10,
                         flexWrap: "wrap",
                       }}
@@ -2176,77 +1600,233 @@ export default function StudentPage() {
                         type="submit"
                         variant="outline"
                         disabled={
-                          saving ||
-                          uploading
+                          savingStage === 2 || uploadingStage === 2
                         }
                       >
                         <FileText size={17} />
                         Guardar borrador
                       </Button>
-
                       <Button
                         type="button"
                         disabled={
-                          saving ||
-                          uploading
+                          savingStage === 2 || uploadingStage === 2
                         }
-                        onClick={() =>
-                          saveCanvas(true)
-                        }
+                        onClick={() => saveCanvas(true)}
                       >
                         <Send size={17} />
                         Enviar Canvas al profesor
                       </Button>
                     </div>
                   ) : (
-                    <div
+                    <FrozenNotice
+                      work={stage2}
+                      approvedMessage="Canvas aprobado"
+                    />
+                  )}
+                </form>
+              </>
+            )}
+          </section>
+        )}
+
+        {stage3 && (
+          <section
+            style={{
+              background: "white",
+              borderRadius: 24,
+              padding: 30,
+              marginBottom: 24,
+              opacity: stage3.status === "locked" ? 0.72 : 1,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 15,
+                flexWrap: "wrap",
+                marginBottom: 24,
+              }}
+            >
+              <div>
+                <small style={{ color: "#159b7d", fontWeight: 800 }}>
+                  ETAPA 3 · 4 PUNTOS
+                </small>
+                <h2>Datos / dataset / contenido</h2>
+                <p style={{ color: "#6b7280" }}>
+                  Describe los datos o contenidos usados por el proyecto.
+                  Los datasets pesados se mantienen en Drive; aquí se
+                  registra su enlace.
+                </p>
+              </div>
+              <StatusPill status={stage3.status} />
+            </div>
+
+            {stage3.status === "locked" ? (
+              <LockedNotice previous={2} />
+            ) : (
+              <>
+                <TeacherComment work={stage3} />
+
+                <form
+                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                    event.preventDefault();
+                    saveStage3(false);
+                  }}
+                  style={{ display: "grid", gap: 20 }}
+                >
+                  <label style={{ display: "grid", gap: 7 }}>
+                    <strong>1. Tipo de recurso</strong>
+                    <select
+                      value={resourceType}
+                      disabled={!editable(stage3)}
+                      onChange={(event) =>
+                        setResourceType(event.target.value)
+                      }
                       style={{
-                        background: "#f8fafc",
-                        borderRadius: 14,
-                        padding: 15,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
+                        minHeight: 46,
+                        border: "1px solid #d1d5db",
+                        borderRadius: 12,
+                        padding: "0 14px",
+                        fontSize: 15,
+                        background: editable(stage3)
+                          ? "white"
+                          : "#f3f4f6",
                       }}
                     >
-                      {stage2.status ===
-                      "approved" ? (
-                        <CheckCircle2
-                          color="#059669"
-                        />
-                      ) : (
-                        <Lock
-                          color="#6b7280"
-                        />
-                      )}
+                      <option value="dataset">Dataset</option>
+                      <option value="contenido">Contenido</option>
+                      <option value="mixto">
+                        Datos + contenido
+                      </option>
+                    </select>
+                  </label>
 
-                      <div>
-                        <strong>
-                          {stage2.status ===
-                          "approved"
-                            ? `Canvas aprobado · ${numeric(
-                                stage2.score
-                              )}/4`
-                            : "Canvas bloqueado"}
-                        </strong>
+                  <TextAreaField
+                    label="2. Descripción de los datos o contenidos"
+                    value={dataDescription}
+                    onChange={setDataDescription}
+                    disabled={!editable(stage3)}
+                    placeholder="¿Qué contiene el dataset o material y para qué se utilizará?"
+                  />
 
-                        <small
-                          style={{
-                            display: "block",
-                            marginTop: 4,
-                            color: "#6b7280",
-                          }}
-                        >
-                          {stage2.status ===
-                          "submitted"
-                            ? "El profesor está revisando tu Canvas."
-                            : stage2.status ===
-                              "approved"
-                            ? "La Etapa 3 ya está desbloqueada."
-                            : "Espera las indicaciones del profesor."}
-                        </small>
-                      </div>
+                  <TextAreaField
+                    label="3. Origen o fuente"
+                    value={sourceOrigin}
+                    onChange={setSourceOrigin}
+                    disabled={!editable(stage3)}
+                    placeholder="¿Los datos fueron creados por el grupo, descargados, recolectados, fotografiados, generados, etc.?"
+                  />
+
+                  <TextAreaField
+                    label="4. Organización, clases o categorías"
+                    value={organizationClasses}
+                    onChange={setOrganizationClasses}
+                    disabled={!editable(stage3)}
+                    placeholder="Ej. gato/perro, reciclable/no reciclable, carpetas, etiquetas..."
+                  />
+
+                  <TextField
+                    label="5. Cantidad o tamaño aproximado"
+                    value={dataQuantity}
+                    onChange={setDataQuantity}
+                    disabled={!editable(stage3)}
+                    placeholder="Ej. 850 imágenes, 2.000 registros, 30 textos..."
+                  />
+
+                  <TextAreaField
+                    label="6. Método de obtención"
+                    value={collectionMethod}
+                    onChange={setCollectionMethod}
+                    disabled={!editable(stage3)}
+                    placeholder="¿Cómo obtuvieron o construyeron estos datos/contenidos?"
+                  />
+
+                  <TextAreaField
+                    label="7. Preparación, limpieza o selección"
+                    value={dataPreparation}
+                    onChange={setDataPreparation}
+                    disabled={!editable(stage3)}
+                    placeholder="¿Qué eliminaron, corrigieron, organizaron, etiquetaron o transformaron?"
+                  />
+
+                  <TextAreaField
+                    label="8. Limitaciones, sesgos y cuidados"
+                    value={dataLimitations}
+                    onChange={setDataLimitations}
+                    disabled={!editable(stage3)}
+                    placeholder="¿Hay privacidad, sesgo, clases desbalanceadas o ejemplos insuficientes?"
+                  />
+
+                  <TextField
+                    label="9. Enlace al dataset, carpeta o contenido"
+                    value={resourceUrl}
+                    onChange={setResourceUrl}
+                    disabled={!editable(stage3)}
+                    type="url"
+                    placeholder="https://drive.google.com/... o enlace equivalente"
+                  />
+
+                  {resourceUrl && (
+                    <a
+                      href={resourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        color: "#4338ca",
+                        fontWeight: 700,
+                        width: "fit-content",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <LinkIcon size={16} />
+                      Abrir recurso
+                    </a>
+                  )}
+
+                  <TextAreaField
+                    label="Comentario para el profesor"
+                    value={stage3Comment}
+                    onChange={setStage3Comment}
+                    disabled={!editable(stage3)}
+                    placeholder="Comentario opcional sobre los datos o contenidos."
+                    rows={3}
+                  />
+
+                  {editable(stage3) ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={savingStage === 3}
+                      >
+                        <Database size={17} />
+                        Guardar borrador
+                      </Button>
+
+                      <Button
+                        type="button"
+                        disabled={savingStage === 3}
+                        onClick={() => saveStage3(true)}
+                      >
+                        <Send size={17} />
+                        Enviar Etapa 3 al profesor
+                      </Button>
                     </div>
+                  ) : (
+                    <FrozenNotice
+                      work={stage3}
+                      approvedMessage="Etapa 3 aprobada"
+                    />
                   )}
                 </form>
               </>
@@ -2263,37 +1843,21 @@ export default function StudentPage() {
         >
           <h2>Próximas etapas</h2>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-            }}
-          >
+          <div style={{ display: "grid", gap: 12 }}>
             {stages
-              .filter(
-                (stage) =>
-                  stage.id >= 3
-              )
+              .filter((stage) => stage.id >= 4)
               .map((stage) => {
                 const work =
-                  works.find(
-                    (item) =>
-                      item.stage_id ===
-                      stage.id
-                  );
-
-                const status =
-                  work?.status ?? "locked";
-
-                const info =
-                  STATUS_DATA[status];
+                  works.find((item) => item.stage_id === stage.id) ??
+                  null;
+                const status: StageStatus = work?.status ?? "locked";
+                const info = STATUS_DATA[status];
 
                 return (
                   <article
                     key={stage.id}
                     style={{
-                      border:
-                        "1px solid #e5e7eb",
+                      border: "1px solid #e5e7eb",
                       borderRadius: 17,
                       padding: 17,
                       display: "flex",
@@ -2308,39 +1872,25 @@ export default function StudentPage() {
                         borderRadius: 13,
                         display: "grid",
                         placeItems: "center",
-                        background:
-                          info.background,
+                        background: info.background,
                       }}
                     >
-                      {status ===
-                      "locked" ? (
+                      {status === "locked" ? (
                         <Lock size={19} />
-                      ) : status ===
-                        "correction_required" ? (
-                        <RefreshCw
-                          size={19}
-                        />
+                      ) : status === "correction_required" ? (
+                        <RefreshCw size={19} />
                       ) : (
-                        <ChevronRight
-                          size={19}
-                        />
+                        <ChevronRight size={19} />
                       )}
                     </div>
 
-                    <div
-                      style={{
-                        flex: 1,
-                      }}
-                    >
+                    <div style={{ flex: 1 }}>
                       <strong>
-                        Etapa {stage.id} ·{" "}
-                        {stage.name}
+                        Etapa {stage.id} · {stage.name}
                       </strong>
-
                       <p
                         style={{
-                          margin:
-                            "4px 0 0",
+                          margin: "4px 0 0",
                           color: "#6b7280",
                           fontSize: 13,
                         }}
@@ -2355,13 +1905,11 @@ export default function StudentPage() {
                         padding: "6px 10px",
                         fontSize: 11,
                         fontWeight: 700,
-                        background:
-                          info.background,
+                        background: info.background,
                         color: info.color,
                       }}
                     >
-                      {info.icon}{" "}
-                      {info.label}
+                      {info.icon} {info.label}
                     </span>
                   </article>
                 );
@@ -2380,30 +1928,16 @@ export default function StudentPage() {
                 "linear-gradient(135deg,#fff7d6,#f4e7ff)",
             }}
           >
-            <div
-              style={{
-                fontSize: 54,
-              }}
-            >
-              🏆
-            </div>
-
-            <h2>
-              ¡Proyecto completado!
-            </h2>
-
+            <div style={{ fontSize: 54 }}>🏆</div>
+            <h2>¡Proyecto completado!</h2>
             <p>
-              Alcanzaron el 100 % y el
-              profesor aprobó oficialmente
+              Alcanzaron el 100 % y el profesor aprobó oficialmente
               la culminación.
             </p>
-
             {group.diploma_code && (
               <small>
                 Código de diploma:{" "}
-                <strong>
-                  {group.diploma_code}
-                </strong>
+                <strong>{group.diploma_code}</strong>
               </small>
             )}
           </section>
