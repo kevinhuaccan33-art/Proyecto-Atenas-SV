@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ChangeEvent,
   type CSSProperties,
 } from "react";
 
@@ -21,6 +22,7 @@ import {
   Menu,
   Search,
   Sparkles,
+  Upload,
   Users,
   X,
 } from "lucide-react";
@@ -326,6 +328,14 @@ export default function HomePage() {
   const [finalizingGroup, setFinalizingGroup] =
     useState<number | null>(null);
 
+  const [adminView, setAdminView] =
+    useState<
+      "inicio" | "grupos" | "estudiantes" | "revisiones"
+    >("inicio");
+
+  const [uploadingFinalAsset, setUploadingFinalAsset] =
+    useState<"diploma" | "music" | null>(null);
+
   const [assetPreview, setAssetPreview] =
     useState<{
       url: string;
@@ -540,16 +550,21 @@ export default function HomePage() {
       ""
     ).trim();
 
-    const score = Number(
-      reviewScores[stageId] ?? numeric(work.score)
-    );
+    const rawScore =
+      reviewScores[stageId];
+
+    const score =
+      rawScore === undefined ||
+      rawScore.trim() === ""
+        ? Number.NaN
+        : Number(rawScore);
 
     if (
       action === "approved" &&
       (!Number.isFinite(score) || score < 0 || score > 4)
     ) {
       setNotice(
-        "La nota debe estar entre 0 y 4 puntos."
+        "Antes de aprobar, escribe la nota de ESTA ETAPA entre 0 y 4 puntos."
       );
       return;
     }
@@ -629,6 +644,250 @@ export default function HomePage() {
       );
     } finally {
       setReviewingStage(null);
+    }
+  }
+
+  function navigateAdmin(
+    view:
+      | "inicio"
+      | "grupos"
+      | "estudiantes"
+      | "revisiones"
+  ) {
+    setAdminView(view);
+    setMobileNav(false);
+
+    if (view === "revisiones") {
+      setFilter("revision");
+    } else if (view === "grupos") {
+      setFilter("todos");
+    }
+
+    window.setTimeout(() => {
+      const id =
+        view === "inicio"
+          ? "admin-top"
+          : view === "estudiantes"
+          ? "students-section"
+          : "groups-section";
+
+      document
+        .getElementById(id)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 50);
+  }
+
+  async function adjustApprovedScore(
+    groupId: number,
+    work: StageWork
+  ) {
+    const raw =
+      reviewScores[work.stage_id] ??
+      String(numeric(work.score));
+
+    const score = Number(raw);
+    const currentScore = numeric(work.score);
+
+    if (
+      !Number.isFinite(score) ||
+      score < 0 ||
+      score > 4
+    ) {
+      setNotice(
+        "La nota de una etapa debe estar entre 0 y 4."
+      );
+      return;
+    }
+
+    if (score < currentScore) {
+      setNotice(
+        `La regla actual de la base de datos no permite reducir una nota ya registrada (${currentScore}/4). Sí puedes aumentarla.`
+      );
+      return;
+    }
+
+    setReviewingStage(work.stage_id);
+    setNotice("");
+
+    try {
+      const supabase = await getSupabase();
+
+      const { error } = await supabase
+        .from("group_stage_work")
+        .update({ score })
+        .eq("group_id", groupId)
+        .eq("stage_id", work.stage_id);
+
+      if (error) throw error;
+
+      setNotice(
+        `Nota de Etapa ${work.stage_id} actualizada a ${score}/4.`
+      );
+
+      await loadDashboard(false);
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar la nota."
+      );
+    } finally {
+      setReviewingStage(null);
+    }
+  }
+
+  async function uploadFinalAdminAsset(
+    event: ChangeEvent<HTMLInputElement>,
+    group: AtenasGroup,
+    kind: "diploma" | "music"
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    const stage5 = group.stageWorks.find(
+      (work) => work.stage_id === 5
+    );
+
+    if (!stage5) {
+      setNotice(
+        "No encontramos la Etapa 5 de este grupo."
+      );
+      return;
+    }
+
+    const diplomaTypes = [
+      "application/pdf",
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ];
+
+    const musicTypes = [
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/ogg",
+      "audio/mp4",
+      "audio/x-m4a",
+    ];
+
+    const allowed =
+      kind === "diploma"
+        ? diplomaTypes
+        : musicTypes;
+
+    if (
+      !allowed.includes(file.type) &&
+      !(
+        kind === "music" &&
+        /\.(mp3|wav|ogg|m4a)$/i.test(file.name)
+      )
+    ) {
+      setNotice(
+        kind === "diploma"
+          ? "El diploma debe ser PDF, PNG, JPG o WebP."
+          : "La música debe ser MP3, WAV, OGG o M4A."
+      );
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setNotice(
+        "El archivo no puede superar 10 MB."
+      );
+      return;
+    }
+
+    setUploadingFinalAsset(kind);
+    setNotice("");
+
+    try {
+      const extension =
+        file.name
+          .split(".")
+          .pop()
+          ?.toLowerCase() ||
+        (kind === "diploma" ? "pdf" : "mp3");
+
+      const path =
+        `${group.id}/5/admin-${kind}-${crypto.randomUUID()}.${extension}`;
+
+      const supabase = await getSupabase();
+
+      const { error: uploadError } =
+        await supabase.storage
+          .from("project-assets")
+          .upload(path, file, {
+            upsert: false,
+            contentType: file.type,
+          });
+
+      if (uploadError) throw uploadError;
+
+      const nextContent = {
+        ...(stage5.content ?? {}),
+        [kind === "diploma"
+          ? "diploma_asset_path"
+          : "celebration_music_path"]:
+          path,
+      };
+
+      const { error: updateError } =
+        await supabase
+          .from("group_stage_work")
+          .update({ content: nextContent })
+          .eq("group_id", group.id)
+          .eq("stage_id", 5);
+
+      if (updateError) throw updateError;
+
+      setNotice(
+        kind === "diploma"
+          ? "🎓 Diploma guardado para este grupo."
+          : "🎵 Música de celebración guardada para este grupo."
+      );
+
+      await loadDashboard(false);
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el archivo."
+      );
+    } finally {
+      setUploadingFinalAsset(null);
+    }
+  }
+
+  async function playUploadedMusic(path: string) {
+    try {
+      const supabase = await getSupabase();
+
+      const { data, error } =
+        await supabase.storage
+          .from("project-assets")
+          .createSignedUrl(path, 3600);
+
+      if (error || !data?.signedUrl) {
+        throw error ??
+          new Error("No se pudo abrir la música.");
+      }
+
+      const audio = new Audio(data.signedUrl);
+      await audio.play();
+      setNotice("🎵 Música de celebración reproducida.");
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        "No se pudo reproducir la música guardada."
+      );
     }
   }
 
@@ -1277,12 +1536,30 @@ export default function HomePage() {
         </button>
 
         <nav>
-          <button className="nav-item active">
+          <button
+            className={
+              adminView === "inicio"
+                ? "nav-item active"
+                : "nav-item"
+            }
+            onClick={() =>
+              navigateAdmin("inicio")
+            }
+          >
             <Home />
             <span>Inicio</span>
           </button>
 
-          <button className="nav-item">
+          <button
+            className={
+              adminView === "grupos"
+                ? "nav-item active"
+                : "nav-item"
+            }
+            onClick={() =>
+              navigateAdmin("grupos")
+            }
+          >
             <FolderKanban />
             <span>Grupos</span>
             <span className="nav-count">
@@ -1290,12 +1567,30 @@ export default function HomePage() {
             </span>
           </button>
 
-          <button className="nav-item">
+          <button
+            className={
+              adminView === "estudiantes"
+                ? "nav-item active"
+                : "nav-item"
+            }
+            onClick={() =>
+              navigateAdmin("estudiantes")
+            }
+          >
             <Users />
             <span>Estudiantes</span>
           </button>
 
-          <button className="nav-item">
+          <button
+            className={
+              adminView === "revisiones"
+                ? "nav-item active"
+                : "nav-item"
+            }
+            onClick={() =>
+              navigateAdmin("revisiones")
+            }
+          >
             <ListChecks />
             <span>Revisiones</span>
             {pendingTotal > 0 && (
@@ -1347,6 +1642,9 @@ export default function HomePage() {
           <button
             className="notification"
             aria-label="Notificaciones"
+            onClick={() =>
+              navigateAdmin("revisiones")
+            }
           >
             <Bell />
             {pendingTotal > 0 && <span />}
@@ -1361,7 +1659,7 @@ export default function HomePage() {
           </Button>
         </header>
 
-        <div className="workspace">
+        <div className="workspace" id="admin-top">
           <section className="welcome-row">
             <div>
               <p className="eyebrow">
@@ -1427,6 +1725,70 @@ export default function HomePage() {
             </article>
           </section>
 
+          {adminView === "estudiantes" && (
+            <section
+              id="students-section"
+              style={{
+                background: "white",
+                borderRadius: 22,
+                padding: 22,
+                marginBottom: 24,
+              }}
+            >
+              <h2 style={{ marginTop: 0 }}>
+                Estudiantes por grupo
+              </h2>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(240px,1fr))",
+                  gap: 12,
+                }}
+              >
+                {activeGroups.map((group) => (
+                  <article
+                    key={group.id}
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 15,
+                      padding: 15,
+                    }}
+                  >
+                    <small
+                      style={{
+                        color: "#6b7280",
+                        fontWeight: 800,
+                      }}
+                    >
+                      GRUPO {group.id}
+                    </small>
+                    <strong
+                      style={{
+                        display: "block",
+                        margin: "5px 0",
+                      }}
+                    >
+                      {group.members ||
+                        "Sin integrantes"}
+                    </strong>
+                    <span
+                      style={{
+                        color: "#6b7280",
+                        fontSize: 13,
+                      }}
+                    >
+                      {group.project_name ||
+                        "Proyecto sin nombre"}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div id="groups-section">
           <Tabs
             value={filter}
             onValueChange={setFilter}
@@ -1490,6 +1852,7 @@ export default function HomePage() {
               )}
             </div>
           )}
+          </div>
         </div>
       </section>
 
@@ -1796,6 +2159,103 @@ export default function HomePage() {
                       </div>
                     </div>
 
+                    {work.status === "approved" && (
+                      <div
+                        style={{
+                          border: "1px solid #d1fae5",
+                          background: "#f0fdf4",
+                          borderRadius: 14,
+                          padding: 13,
+                          display: "flex",
+                          alignItems: "end",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "grid",
+                            gap: 5,
+                            minWidth: 150,
+                          }}
+                        >
+                          <strong>
+                            Ajustar nota /4
+                          </strong>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max="4"
+                            step="0.1"
+                            value={
+                              reviewScores[
+                                stage.id
+                              ] ??
+                              String(
+                                numeric(
+                                  work.score
+                                )
+                              )
+                            }
+                            onChange={(event) => {
+                              const next =
+                                event.target.value;
+
+                              if (
+                                next === "" ||
+                                (Number(next) >= 0 &&
+                                  Number(next) <= 4)
+                              ) {
+                                setReviewScores(
+                                  (current) => ({
+                                    ...current,
+                                    [stage.id]:
+                                      next,
+                                  })
+                                );
+                              }
+                            }}
+                            style={{
+                              minHeight: 42,
+                              border:
+                                "1px solid #d1d5db",
+                              borderRadius: 10,
+                              padding: "0 11px",
+                              background: "white",
+                            }}
+                          />
+                        </label>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            reviewingStage ===
+                            stage.id
+                          }
+                          onClick={() =>
+                            adjustApprovedScore(
+                              activeGroup.id,
+                              work
+                            )
+                          }
+                        >
+                          Guardar nota
+                        </Button>
+
+                        <small
+                          style={{
+                            color: "#047857",
+                            paddingBottom: 10,
+                          }}
+                        >
+                          Sirve para corregir notas
+                          de etapas ya aprobadas.
+                        </small>
+                      </div>
+                    )}
+
                     {work.status === "submitted" && (
                       <div
                         style={{
@@ -1844,31 +2304,38 @@ export default function HomePage() {
                               gap: 6,
                             }}
                           >
-                            <strong>Nota /4</strong>
+                            <strong>
+                              Nota de esta etapa /4
+                            </strong>
                             <input
                               type="number"
                               min="0"
                               max="4"
                               step="0.1"
+                              placeholder="0 a 4"
                               value={
                                 reviewScores[
                                   stage.id
-                                ] ??
-                                String(
-                                  numeric(
-                                    work.score
-                                  )
-                                )
+                                ] ?? ""
                               }
-                              onChange={(event) =>
-                                setReviewScores(
-                                  (current) => ({
-                                    ...current,
-                                    [stage.id]:
-                                      event.target.value,
-                                  })
-                                )
-                              }
+                              onChange={(event) => {
+                                const next =
+                                  event.target.value;
+
+                                if (
+                                  next === "" ||
+                                  (Number(next) >= 0 &&
+                                    Number(next) <= 4)
+                                ) {
+                                  setReviewScores(
+                                    (current) => ({
+                                      ...current,
+                                      [stage.id]:
+                                        next,
+                                    })
+                                  );
+                                }
+                              }}
                               style={{
                                 minHeight: 43,
                                 border:
@@ -1877,6 +2344,14 @@ export default function HomePage() {
                                 padding: "0 11px",
                               }}
                             />
+                            <small
+                              style={{
+                                color: "#6b7280",
+                              }}
+                            >
+                              Total acumulado actual:{" "}
+                              {activeGroup.grade}/20
+                            </small>
                           </label>
 
                           <label
@@ -2008,6 +2483,225 @@ export default function HomePage() {
                     Cierre oficial del proyecto
                   </h3>
 
+                  {(() => {
+                    const finalWork =
+                      activeGroup.stageWorks.find(
+                        (work) =>
+                          work.stage_id === 5
+                      );
+
+                    const diplomaPath =
+                      String(
+                        finalWork?.content
+                          ?.diploma_asset_path ??
+                          ""
+                      );
+
+                    const musicPath =
+                      String(
+                        finalWork?.content
+                          ?.celebration_music_path ??
+                          ""
+                      );
+
+                    return (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit,minmax(220px,1fr))",
+                          gap: 12,
+                          margin: "16px 0 20px",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div
+                          style={{
+                            border:
+                              "1px solid #e5e7eb",
+                            borderRadius: 14,
+                            padding: 14,
+                            background: "white",
+                          }}
+                        >
+                          <strong>
+                            🎓 Diploma personalizado
+                          </strong>
+
+                          <p
+                            style={{
+                              color: "#6b7280",
+                              fontSize: 13,
+                            }}
+                          >
+                            PDF o imagen, máximo
+                            10 MB.
+                          </p>
+
+                          <label
+                            style={{
+                              display:
+                                "inline-block",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              hidden
+                              type="file"
+                              accept="application/pdf,image/png,image/jpeg,image/webp"
+                              disabled={
+                                uploadingFinalAsset ===
+                                "diploma"
+                              }
+                              onChange={(event) =>
+                                uploadFinalAdminAsset(
+                                  event,
+                                  activeGroup,
+                                  "diploma"
+                                )
+                              }
+                            />
+
+                            <span
+                              style={{
+                                display:
+                                  "inline-flex",
+                                gap: 7,
+                                alignItems:
+                                  "center",
+                                border:
+                                  "1px solid #d1d5db",
+                                borderRadius: 10,
+                                padding:
+                                  "9px 12px",
+                              }}
+                            >
+                              <Upload
+                                size={16}
+                              />
+                              {uploadingFinalAsset ===
+                              "diploma"
+                                ? "Subiendo..."
+                                : diplomaPath
+                                ? "Cambiar diploma"
+                                : "Subir diploma"}
+                            </span>
+                          </label>
+
+                          {diplomaPath && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              style={{
+                                marginLeft: 8,
+                              }}
+                              onClick={() =>
+                                previewAsset(
+                                  diplomaPath,
+                                  "Diploma oficial"
+                                )
+                              }
+                            >
+                              <Eye size={16} />
+                              Ver
+                            </Button>
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            border:
+                              "1px solid #e5e7eb",
+                            borderRadius: 14,
+                            padding: 14,
+                            background: "white",
+                          }}
+                        >
+                          <strong>
+                            🎵 Música de celebración
+                          </strong>
+
+                          <p
+                            style={{
+                              color: "#6b7280",
+                              fontSize: 13,
+                            }}
+                          >
+                            MP3, WAV, OGG o M4A,
+                            máximo 10 MB.
+                          </p>
+
+                          <label
+                            style={{
+                              display:
+                                "inline-block",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              hidden
+                              type="file"
+                              accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,.mp3,.wav,.ogg,.m4a"
+                              disabled={
+                                uploadingFinalAsset ===
+                                "music"
+                              }
+                              onChange={(event) =>
+                                uploadFinalAdminAsset(
+                                  event,
+                                  activeGroup,
+                                  "music"
+                                )
+                              }
+                            />
+
+                            <span
+                              style={{
+                                display:
+                                  "inline-flex",
+                                gap: 7,
+                                alignItems:
+                                  "center",
+                                border:
+                                  "1px solid #d1d5db",
+                                borderRadius: 10,
+                                padding:
+                                  "9px 12px",
+                              }}
+                            >
+                              <Music2
+                                size={16}
+                              />
+                              {uploadingFinalAsset ===
+                              "music"
+                                ? "Subiendo..."
+                                : musicPath
+                                ? "Cambiar música"
+                                : "Subir música"}
+                            </span>
+                          </label>
+
+                          {musicPath && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              style={{
+                                marginLeft: 8,
+                              }}
+                              onClick={() =>
+                                playUploadedMusic(
+                                  musicPath
+                                )
+                              }
+                            >
+                              Probar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {Math.abs(activeGroup.grade - 20) < 0.001 ? (
                     <>
                       <p>
@@ -2071,14 +2765,70 @@ export default function HomePage() {
                   </div>
                 )}
 
-                <Button
-                  type="button"
-                  style={{ marginTop: 14 }}
-                  onClick={playCelebrationMusic}
-                >
-                  <Music2 size={17} />
-                  Reproducir música de celebración
-                </Button>
+                {(() => {
+                  const finalWork =
+                    activeGroup.stageWorks.find(
+                      (work) =>
+                        work.stage_id === 5
+                    );
+
+                  const diplomaPath =
+                    String(
+                      finalWork?.content
+                        ?.diploma_asset_path ??
+                        ""
+                    );
+
+                  const musicPath =
+                    String(
+                      finalWork?.content
+                        ?.celebration_music_path ??
+                        ""
+                    );
+
+                  return (
+                    <div
+                      style={{
+                        marginTop: 14,
+                        display: "flex",
+                        justifyContent:
+                          "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {diplomaPath && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            previewAsset(
+                              diplomaPath,
+                              "Diploma oficial"
+                            )
+                          }
+                        >
+                          <Eye size={17} />
+                          Ver diploma
+                        </Button>
+                      )}
+
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          musicPath
+                            ? playUploadedMusic(
+                                musicPath
+                              )
+                            : playCelebrationMusic()
+                        }
+                      >
+                        <Music2 size={17} />
+                        Reproducir música
+                      </Button>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </section>
