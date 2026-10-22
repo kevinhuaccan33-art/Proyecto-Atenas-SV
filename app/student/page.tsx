@@ -17,6 +17,7 @@ import {
   ImagePlus,
   Link as LinkIcon,
   Lock,
+  Music2,
   LogOut,
   RefreshCw,
   Send,
@@ -380,6 +381,10 @@ export default function StudentPage() {
   const [presentationUrl, setPresentationUrl] = useState("");
   const [finalEvidencePath, setFinalEvidencePath] = useState("");
   const [finalEvidenceUrl, setFinalEvidenceUrl] = useState("");
+  const [diplomaAssetPath, setDiplomaAssetPath] = useState("");
+  const [diplomaAssetUrl, setDiplomaAssetUrl] = useState("");
+  const [celebrationMusicPath, setCelebrationMusicPath] = useState("");
+  const [celebrationMusicUrl, setCelebrationMusicUrl] = useState("");
   const [stage5Comment, setStage5Comment] = useState("");
 
   const stage1 = useMemo(
@@ -640,7 +645,7 @@ export default function StudentPage() {
 
       setLogoPath(currentLogo);
       setStage1Comment(identity?.student_comment ?? "");
-      setLogoPreview(currentLogo ? await createFileUrl(currentLogo) : "");
+      setLogoPreview("");
 
       const canvas = loadedWorks.find((work) => work.stage_id === 2);
       const canvasContent =
@@ -659,9 +664,7 @@ export default function StudentPage() {
       const currentScheme = String(canvasContent.scheme_path ?? "");
       setSchemePath(currentScheme);
       setStage2Comment(canvas?.student_comment ?? "");
-      setSchemeUrl(
-        currentScheme ? await createFileUrl(currentScheme) : ""
-      );
+      setSchemeUrl("");
 
       const dataStage = loadedWorks.find((work) => work.stage_id === 3);
       const dataContent =
@@ -719,9 +722,7 @@ export default function StudentPage() {
         prototypeContent.evidence_path ?? ""
       );
       setPrototypeEvidencePath(evidencePath);
-      setPrototypeEvidenceUrl(
-        evidencePath ? await createFileUrl(evidencePath) : ""
-      );
+      setPrototypeEvidenceUrl("");
       setStage4Comment(prototypeStage?.student_comment ?? "");
 
       const finalStage = loadedWorks.find(
@@ -745,10 +746,49 @@ export default function StudentPage() {
       );
 
       setFinalEvidencePath(finalPath);
-      setFinalEvidenceUrl(
-        finalPath ? await createFileUrl(finalPath) : ""
+      setFinalEvidenceUrl("");
+
+      const diplomaPath = String(
+        finalContent.diploma_asset_path ?? ""
       );
+      const musicPath = String(
+        finalContent.celebration_music_path ?? ""
+      );
+
+      setDiplomaAssetPath(diplomaPath);
+      setCelebrationMusicPath(musicPath);
+      setDiplomaAssetUrl("");
+      setCelebrationMusicUrl("");
       setStage5Comment(finalStage?.student_comment ?? "");
+
+      // La información principal ya está lista. Mostramos la página
+      // antes de esperar las vistas previas privadas de Storage.
+      if (showSpinner) {
+        setInitialLoading(false);
+      }
+
+      const [
+        logoSigned,
+        schemeSigned,
+        prototypeSigned,
+        finalSigned,
+        diplomaSigned,
+        musicSigned,
+      ] = await Promise.all([
+        currentLogo ? createFileUrl(currentLogo) : Promise.resolve(""),
+        currentScheme ? createFileUrl(currentScheme) : Promise.resolve(""),
+        evidencePath ? createFileUrl(evidencePath) : Promise.resolve(""),
+        finalPath ? createFileUrl(finalPath) : Promise.resolve(""),
+        diplomaPath ? createFileUrl(diplomaPath) : Promise.resolve(""),
+        musicPath ? createFileUrl(musicPath) : Promise.resolve(""),
+      ]);
+
+      setLogoPreview(logoSigned);
+      setSchemeUrl(schemeSigned);
+      setPrototypeEvidenceUrl(prototypeSigned);
+      setFinalEvidenceUrl(finalSigned);
+      setDiplomaAssetUrl(diplomaSigned);
+      setCelebrationMusicUrl(musicSigned);
     } catch (error) {
       console.error("Error cargando grupo:", error);
       setMessage(
@@ -1580,7 +1620,7 @@ export default function StudentPage() {
                     color: "#4338ca",
                   }}
                 >
-                  Hito del curso: {celebration.milestone}
+                  Hito de etapas: {celebration.milestone} · Progreso por nota: {progress}%
                 </small>
               </div>
             </div>
@@ -2931,6 +2971,53 @@ export default function StudentPage() {
               >
                 Código de diploma:{" "}
                 <strong>{group.diploma_code}</strong>
+              </div>
+            )}
+
+            {(diplomaAssetUrl || celebrationMusicUrl) && (
+              <div
+                style={{
+                  marginTop: 20,
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                {diplomaAssetUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      window.open(
+                        diplomaAssetUrl,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
+                    <Award size={17} />
+                    Ver diploma oficial
+                  </Button>
+                )}
+
+                {celebrationMusicUrl && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const audio =
+                        new Audio(celebrationMusicUrl);
+                      audio.play().catch(() =>
+                        setMessage(
+                          "El navegador bloqueó el audio. Pulsa nuevamente el botón."
+                        )
+                      );
+                    }}
+                  >
+                    <Music2 size={17} />
+                    Reproducir celebración
+                  </Button>
+                )}
               </div>
             )}
           </section>
