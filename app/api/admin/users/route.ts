@@ -91,11 +91,19 @@ async function parseError(
       text
     );
   } catch {
-    return text ||
-      `Error ${response.status}`;
+    return (
+      text ||
+      `Error ${response.status}`
+    );
   }
 }
 
+/**
+ * IMPORTANTE:
+ * Las nuevas claves sb_secret_... NO son JWT.
+ * Para llamadas administrativas las enviamos como `apikey`.
+ * No las enviamos como `Authorization: Bearer sb_secret_...`.
+ */
 async function adminFetch(
   path: string,
   init: RequestInit = {}
@@ -109,11 +117,6 @@ async function adminFetch(
   headers.set(
     "apikey",
     secret
-  );
-
-  headers.set(
-    "Authorization",
-    `Bearer ${secret}`
   );
 
   if (
@@ -141,7 +144,9 @@ async function adminFetch(
     );
   }
 
-  if (response.status === 204) {
+  if (
+    response.status === 204
+  ) {
     return null;
   }
 
@@ -153,6 +158,12 @@ async function adminFetch(
     : null;
 }
 
+/**
+ * Verifica que quien llama al endpoint sea el profesor autenticado.
+ * Aquí sí usamos:
+ * - apikey: clave secreta del servidor
+ * - Authorization: JWT REAL de la sesión del profesor
+ */
 async function requireProfessor(
   request: Request
 ) {
@@ -283,6 +294,23 @@ async function createAuthUser(
   };
 }
 
+async function updateAuthPassword(
+  userId: string,
+  password: string
+) {
+  return adminFetch(
+    `/auth/v1/admin/users/${encodeURIComponent(
+      userId
+    )}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        password,
+      }),
+    }
+  );
+}
+
 async function deleteAuthUser(
   userId: string
 ) {
@@ -296,8 +324,64 @@ async function deleteAuthUser(
       }
     );
   } catch {
-    // Best-effort rollback only.
+    // Solo rollback de mejor esfuerzo.
   }
+}
+
+/**
+ * Prueba REAL de usuario + contraseña contra Supabase Auth.
+ * Si esta llamada falla, no mostramos la contraseña al profesor.
+ */
+async function verifyPasswordLogin(
+  email: string,
+  password: string
+) {
+  const secret =
+    getSecretKey();
+
+  const response =
+    await fetch(
+      `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
+      {
+        method: "POST",
+        headers: {
+          apikey: secret,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      `La cuenta fue creada pero Supabase no aceptó el inicio de sesión: ${await parseError(
+        response
+      )}`
+    );
+  }
+
+  const result =
+    (await response.json()) as {
+      access_token?: string;
+      user?: {
+        id?: string;
+      };
+    };
+
+  if (
+    !result.access_token ||
+    !result.user?.id
+  ) {
+    throw new Error(
+      "Supabase no confirmó el acceso con la contraseña generada."
+    );
+  }
+
+  return result.user.id;
 }
 
 async function createStudentAccount({
@@ -377,6 +461,21 @@ async function createStudentAccount({
         }),
       }
     );
+
+    const verifiedUserId =
+      await verifyPasswordLogin(
+        email,
+        password
+      );
+
+    if (
+      verifiedUserId !==
+      created.id
+    ) {
+      throw new Error(
+        "La verificación de acceso devolvió un usuario diferente."
+      );
+    }
   } catch (error) {
     await deleteAuthUser(
       created.id
@@ -413,7 +512,7 @@ async function createMissingAccounts() {
         )
     );
 
-  // El profesor pidió que los 20 grupos queden habilitados.
+  // El profesor pidió tener disponibles los 20 grupos.
   await adminFetch(
     "/rest/v1/groups?id=gte.1&id=lte.20",
     {
@@ -428,7 +527,7 @@ async function createMissingAccounts() {
     }
   );
 
-  // También reactivamos las cuentas ya existentes.
+  // Las cuentas existentes también quedan activas.
   await adminFetch(
     "/rest/v1/profiles?role=eq.student",
     {
@@ -459,41 +558,27 @@ async function createMissingAccounts() {
     password: string;
   }> = [];
 
-  // Lotes pequeños para no golpear Auth con muchas altas simultáneas.
+  // Secuencial: más lento que paralelo, pero mucho más seguro para Auth.
   for (
-    let index = 0;
-    index < missing.length;
-    index += 4
+    const group of missing
   ) {
-    const batch =
-      missing.slice(
-        index,
-        index + 4
-      );
+    const username =
+      `grupo${group.id}`;
 
-    const results =
-      await Promise.all(
-        batch.map(
-          async (group) => {
-            const username =
-              `grupo${group.id}`;
+    const password =
+      generatePassword();
 
-            const password =
-              generatePassword();
-
-            return createStudentAccount(
-              {
-                group,
-                username,
-                password,
-              }
-            );
-          }
-        )
+    const credential =
+      await createStudentAccount(
+        {
+          group,
+          username,
+          password,
+        }
       );
 
     credentials.push(
-      ...results
+      credential
     );
   }
 
@@ -508,12 +593,14 @@ async function resetGroup(
   groupId: number
 ) {
   const groups =
-    await adminFetch(
+    (await adminFetch(
       `/rest/v1/groups?id=eq.${groupId}&select=id`,
       {
         method: "GET",
       }
-    ) as Array<{ id: number }>;
+    )) as Array<{
+      id: number;
+    }>;
 
   if (!groups?.length) {
     throw new Error(
@@ -521,20 +608,20 @@ async function resetGroup(
     );
   }
 
-  // Primero quitamos las entregas de prueba.
+  // Borramos las cinco filas completas.
+  // Esto evita el trigger que impide reducir notas ya registradas.
   await adminFetch(
     `/rest/v1/group_stage_work?group_id=eq.${groupId}`,
     {
       method: "DELETE",
       headers: {
         Prefer:
-          "return=minimal",
+          "return=representation",
       },
     }
   );
 
-  // Dejamos en blanco la identidad del proyecto,
-  // pero conservamos integrantes, grupo y usuario.
+  // Restauramos la ficha del grupo.
   await adminFetch(
     `/rest/v1/groups?id=eq.${groupId}`,
     {
@@ -551,6 +638,7 @@ async function resetGroup(
         completion_approved_at:
           null,
         diploma_code: null,
+        active: true,
       }),
     }
   );
@@ -588,6 +676,52 @@ async function resetGroup(
       ),
     }
   );
+
+  // Verificación posterior: si no quedó limpio, reportamos error.
+  const verification =
+    (await adminFetch(
+      `/rest/v1/group_stage_work?group_id=eq.${groupId}&select=stage_id,status,score,content,student_comment,teacher_comment&order=stage_id.asc`,
+      {
+        method: "GET",
+      }
+    )) as Array<{
+      stage_id: number;
+      status: string;
+      score: number | string;
+      content: Record<string, unknown> | null;
+      student_comment: string | null;
+      teacher_comment: string | null;
+    }>;
+
+  if (
+    verification.length !== 5
+  ) {
+    throw new Error(
+      `El reinicio no quedó completo: se encontraron ${verification.length} etapas en vez de 5.`
+    );
+  }
+
+  for (
+    const row of verification
+  ) {
+    const expectedStatus =
+      row.stage_id === 1
+        ? "editable"
+        : "locked";
+
+    if (
+      row.status !==
+        expectedStatus ||
+      Number(row.score ?? 0) !==
+        0
+    ) {
+      throw new Error(
+        `La Etapa ${row.stage_id} no quedó limpia correctamente.`
+      );
+    }
+  }
+
+  return verification;
 }
 
 export async function GET(
@@ -682,12 +816,12 @@ export async function POST(
         );
 
       const groups =
-        await adminFetch(
+        (await adminFetch(
           `/rest/v1/groups?id=eq.${groupId}&select=id,members,active`,
           {
             method: "GET",
           }
-        ) as GroupRow[];
+        )) as GroupRow[];
 
       const group =
         groups?.[0];
@@ -699,18 +833,18 @@ export async function POST(
       }
 
       const existing =
-        await adminFetch(
+        (await adminFetch(
           `/rest/v1/profiles?group_id=eq.${groupId}&role=eq.student&select=id`,
           {
             method: "GET",
           }
-        ) as Array<{
+        )) as Array<{
           id: string;
         }>;
 
       if (existing?.length) {
         throw new Error(
-          `El Grupo ${groupId} ya tiene una cuenta asignada.`
+          `El Grupo ${groupId} ya tiene una cuenta asignada. Usa "Nueva contraseña" si quieres cambiar su acceso.`
         );
       }
 
@@ -725,6 +859,7 @@ export async function POST(
 
       return Response.json({
         credential,
+        verified: true,
       });
     }
 
@@ -744,14 +879,14 @@ export async function POST(
       }
 
       const profiles =
-        await adminFetch(
+        (await adminFetch(
           `/rest/v1/profiles?id=eq.${encodeURIComponent(
             userId
           )}&role=eq.student&select=id,username,group_id`,
           {
             method: "GET",
           }
-        ) as Array<{
+        )) as Array<{
           id: string;
           username: string;
           group_id: number;
@@ -769,17 +904,28 @@ export async function POST(
       const password =
         generatePassword();
 
-      await adminFetch(
-        `/auth/v1/admin/users/${encodeURIComponent(
-          userId
-        )}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            password,
-          }),
-        }
+      await updateAuthPassword(
+        userId,
+        password
       );
+
+      const email =
+        `${profile.username}@atenas.test`;
+
+      const verifiedUserId =
+        await verifyPasswordLogin(
+          email,
+          password
+        );
+
+      if (
+        verifiedUserId !==
+        profile.id
+      ) {
+        throw new Error(
+          "La nueva contraseña no pudo verificarse."
+        );
+      }
 
       return Response.json({
         credential: {
@@ -791,6 +937,7 @@ export async function POST(
             profile.username,
           password,
         },
+        verified: true,
       });
     }
 
@@ -855,12 +1002,14 @@ export async function POST(
         );
       }
 
-      await resetGroup(
-        groupId
-      );
+      const stages =
+        await resetGroup(
+          groupId
+        );
 
       return Response.json({
         success: true,
+        stages,
       });
     }
 
