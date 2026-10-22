@@ -1,24 +1,16 @@
 "use client";
 
-import {
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Bell,
   ChevronRight,
   FolderKanban,
   Home,
-  ImagePlus,
   LayoutGrid,
-  Lightbulb,
   ListChecks,
+  LogOut,
   Menu,
-  Plus,
   Search,
   Sparkles,
   Users,
@@ -35,291 +27,501 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
 import { getSupabase } from "@/lib/supabase-browser";
 
 
-type Project = {
-  id: number | string;
-
-  title: string;
-
-  team: string;
-
-  members: string[];
-
-  progress: number;
-
-  accent: string;
-
-  soft: string;
-
-  stage: string;
-
-  update?: string;
-
-  updatedAt?: string;
-
-  icon: string;
-
-  summary?: string;
-
-  appUrl?: string;
-
-  evidenceCount?: number;
-
-  steps: {
-    label: string;
-    done: boolean;
-    note?: string;
-  }[];
+type GroupRow = {
+  id: number;
+  members: string;
+  project_name: string | null;
+  logo_path: string | null;
+  active: boolean;
+  completion_approved: boolean;
+  completion_approved_at: string | null;
+  diploma_code: string | null;
+  updated_at: string;
 };
 
 
-const sampleProjects: Project[] = [
+type StageDefinition = {
+  id: number;
+  name: string;
+  description: string;
+  milestone_percent: number;
+};
+
+
+type StageStatus =
+  | "locked"
+  | "editable"
+  | "submitted"
+  | "correction_required"
+  | "approved"
+  | "rejected";
+
+
+type StageWork = {
+  group_id: number;
+  stage_id: number;
+  status: StageStatus;
+  score: number | string;
+  content: Record<string, unknown>;
+  evidence_url: string | null;
+  student_comment: string;
+  teacher_comment: string;
+  revision: number;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+};
+
+
+type AtenasGroup = GroupRow & {
+  grade: number;
+  progress: number;
+  pendingReviews: number;
+  corrections: number;
+  approvedStages: number;
+  currentStage: number;
+  stageWorks: StageWork[];
+};
+
+
+const CARD_COLORS = [
   {
-    id: 1,
-
-    title: "EcoAlerta",
-
-    team: "Guardianes Verdes",
-
-    members: [
-      "Valeria",
-      "Mateo",
-    ],
-
-    progress: 78,
-
     accent: "#6c56d9",
-
     soft: "#eeeafd",
-
-    stage: "Prototipo",
-
-    update: "Hoy, 10:30",
-
-    icon: "🌱",
-
-    steps: [
-      {
-        label: "Problema",
-        done: true,
-      },
-
-      {
-        label: "Beneficiarios",
-        done: true,
-      },
-
-      {
-        label: "Solución",
-        done: true,
-      },
-
-      {
-        label: "Prototipo",
-        done: true,
-      },
-
-      {
-        label: "Producto final",
-        done: false,
-      },
-    ],
   },
-
   {
-    id: 2,
-
-    title: "AquaBot",
-
-    team: "TecnoOcéano",
-
-    members: [
-      "Lucía",
-      "Diego",
-    ],
-
-    progress: 62,
-
     accent: "#2388d9",
-
     soft: "#e7f4ff",
-
-    stage: "Diseño",
-
-    update: "Ayer, 16:15",
-
-    icon: "💧",
-
-    steps: [
-      {
-        label: "Problema",
-        done: true,
-      },
-
-      {
-        label: "Beneficiarios",
-        done: true,
-      },
-
-      {
-        label: "Solución",
-        done: true,
-      },
-
-      {
-        label: "Prototipo",
-        done: false,
-      },
-
-      {
-        label: "Producto final",
-        done: false,
-      },
-    ],
   },
-
   {
-    id: 3,
-
-    title: "AprendeYa",
-
-    team: "Mentes Creativas",
-
-    members: [
-      "Sofía",
-      "Renato",
-    ],
-
-    progress: 45,
-
     accent: "#f39a32",
-
     soft: "#fff2df",
-
-    stage: "Idea y solución",
-
-    update: "26 ago., 14:20",
-
-    icon: "🧠",
-
-    steps: [
-      {
-        label: "Problema",
-        done: true,
-      },
-
-      {
-        label: "Beneficiarios",
-        done: true,
-      },
-
-      {
-        label: "Solución",
-        done: false,
-      },
-
-      {
-        label: "Prototipo",
-        done: false,
-      },
-
-      {
-        label: "Producto final",
-        done: false,
-      },
-    ],
+  },
+  {
+    accent: "#159b7d",
+    soft: "#e7faf5",
+  },
+  {
+    accent: "#e05c77",
+    soft: "#fff0f3",
   },
 ];
 
 
-function ProjectCard({
-  project,
+const STATUS_INFO: Record<
+  StageStatus,
+  {
+    icon: string;
+    label: string;
+  }
+> = {
+  locked: {
+    icon: "🔒",
+    label: "Bloqueada",
+  },
+
+  editable: {
+    icon: "✏️",
+    label: "Editable",
+  },
+
+  submitted: {
+    icon: "🟡",
+    label: "En revisión",
+  },
+
+  correction_required: {
+    icon: "🔄",
+    label: "Corrección",
+  },
+
+  approved: {
+    icon: "✅",
+    label: "Aprobada",
+  },
+
+  rejected: {
+    icon: "❌",
+    label: "Rechazada",
+  },
+};
+
+
+function numberValue(value: number | string | null | undefined) {
+  const result = Number(value ?? 0);
+
+  return Number.isFinite(result)
+    ? result
+    : 0;
+}
+
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new Intl.DateTimeFormat(
+      "es-PE",
+      {
+        dateStyle: "short",
+        timeStyle: "short",
+      }
+    ).format(
+      new Date(value)
+    );
+  } catch {
+    return "";
+  }
+}
+
+
+function buildGroup(
+  group: GroupRow,
+  allWork: StageWork[]
+): AtenasGroup {
+
+  const stageWorks = allWork
+    .filter(
+      work =>
+        work.group_id === group.id
+    )
+    .sort(
+      (a, b) =>
+        a.stage_id - b.stage_id
+    );
+
+
+  /*
+    IMPORTANTE:
+
+    Solo sumamos puntos de etapas APROBADAS.
+
+    Por ejemplo:
+    3.5 + 4 + 2 = 9.5 / 20
+
+    progreso = 9.5 × 5 = 47.5 %
+  */
+
+  const grade = stageWorks
+    .filter(
+      work =>
+        work.status === "approved"
+    )
+    .reduce(
+      (total, work) =>
+        total +
+        numberValue(work.score),
+      0
+    );
+
+
+  const pendingReviews =
+    stageWorks.filter(
+      work =>
+        work.status === "submitted"
+    ).length;
+
+
+  const corrections =
+    stageWorks.filter(
+      work =>
+        work.status ===
+        "correction_required"
+    ).length;
+
+
+  const approvedStages =
+    stageWorks.filter(
+      work =>
+        work.status === "approved"
+    ).length;
+
+
+  const reachedStages =
+    stageWorks.filter(
+      work =>
+        work.status !== "locked"
+    );
+
+
+  const currentStage =
+    reachedStages.length
+      ? Math.max(
+          ...reachedStages.map(
+            work =>
+              work.stage_id
+          )
+        )
+      : 1;
+
+
+  return {
+    ...group,
+
+    grade:
+      Math.round(
+        grade * 100
+      ) / 100,
+
+    progress:
+      Math.round(
+        grade * 5 * 10
+      ) / 10,
+
+    pendingReviews,
+
+    corrections,
+
+    approvedStages,
+
+    currentStage,
+
+    stageWorks,
+  };
+}
+
+
+function GroupCard({
+  group,
+  stages,
   onOpen,
+  onToggleActive,
+  changing,
 }: {
-  project: Project;
+  group: AtenasGroup;
+  stages: StageDefinition[];
   onOpen: () => void;
+  onToggleActive: () => void;
+  changing: boolean;
 }) {
+
+  const colors =
+    CARD_COLORS[
+      (group.id - 1) %
+        CARD_COLORS.length
+    ];
+
+
+  const stage =
+    stages.find(
+      item =>
+        item.id ===
+        group.currentStage
+    );
+
+
+  let stageLabel =
+    stage?.name ??
+    "Etapa 1";
+
+
+  if (!group.active) {
+    stageLabel =
+      "Deshabilitado";
+  }
+
+
+  if (
+    group.pendingReviews > 0
+  ) {
+    stageLabel =
+      "Pendiente de revisión";
+  }
+
+
+  if (
+    group.corrections > 0
+  ) {
+    stageLabel =
+      "Corrección solicitada";
+  }
+
+
+  if (
+    group.completion_approved
+  ) {
+    stageLabel =
+      "Proyecto finalizado";
+  }
+
+
+  const title =
+    group.project_name?.trim() ||
+    `Grupo ${group.id}`;
+
+
+  const members =
+    group.members?.trim() ||
+    "Sin integrantes asignados";
+
+
   return (
     <article
       className="project-card"
       style={
         {
-          "--accent": project.accent,
-          "--soft": project.soft,
+          "--accent":
+            colors.accent,
+
+          "--soft":
+            colors.soft,
+
+          opacity:
+            group.active
+              ? 1
+              : 0.68,
         } as React.CSSProperties
       }
     >
+
       <div className="card-head">
+
         <div className="project-icon">
-          {project.icon}
+
+          {group.completion_approved
+            ? "🏆"
+            : group.active
+            ? "🤖"
+            : "🔒"}
+
         </div>
 
+
         <span className="stage-pill">
-          {project.stage}
+
+          {stageLabel}
+
         </span>
+
       </div>
+
 
       <div>
+
         <p className="team-name">
-          {project.team}
+
+          Grupo {group.id}
+
         </p>
+
 
         <h3>
-          {project.title}
+
+          {title}
+
         </h3>
 
+
         <p className="members">
+
           <Users />
 
-          {project.members.join(" · ")}
+          {members}
+
         </p>
+
       </div>
 
+
       <div className="progress-block">
+
         <div className="progress-label">
+
           <span>
-            Avance general
+            Nota / progreso
           </span>
 
           <strong>
-            {project.progress}%
+
+            {group.grade}/20 ·{" "}
+            {group.progress}%
+
           </strong>
+
         </div>
 
+
         <Progress
-          value={project.progress}
+          value={group.progress}
           className="project-progress"
         />
+
       </div>
 
-      <div className="card-foot">
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+          fontSize: 12,
+          color: "#6b7280",
+        }}
+      >
+
         <span>
-          {
-            project.update
-              ? `Actualizado ${project.update}`
-              : "Ficha del proyecto"
-          }
+
+          ✅ {group.approvedStages}/5
+
         </span>
+
+
+        <span>
+
+          🟡 {group.pendingReviews} revisión
+
+        </span>
+
+
+        <span>
+
+          🔄 {group.corrections} corrección
+
+        </span>
+
+      </div>
+
+
+      <div className="card-foot">
+
+        <Button
+          type="button"
+          variant="outline"
+          disabled={changing}
+          onClick={
+            event => {
+              event.stopPropagation();
+              onToggleActive();
+            }
+          }
+        >
+
+          {group.active
+            ? "Deshabilitar"
+            : "Habilitar"}
+
+        </Button>
+
 
         <button
           onClick={onOpen}
-          aria-label={`Ver proyecto ${project.title}`}
+          aria-label={
+            `Ver Grupo ${group.id}`
+          }
         >
-          Ver proyecto
+
+          Ver grupo
 
           <ChevronRight />
+
         </button>
+
       </div>
+
     </article>
   );
 }
@@ -327,59 +529,96 @@ function ProjectCard({
 
 export default function HomePage() {
 
-  const [projects, setProjects] =
-    useState<Project[]>(sampleProjects);
+  const [groups, setGroups] =
+    useState<AtenasGroup[]>([]);
 
-  const [activeProject, setActiveProject] =
-    useState<Project | null>(null);
+
+  const [stages, setStages] =
+    useState<StageDefinition[]>([]);
+
+
+  const [
+    activeGroupId,
+    setActiveGroupId,
+  ] =
+    useState<number | null>(null);
+
 
   const [query, setQuery] =
     useState("");
 
-  const [mobileNav, setMobileNav] =
+
+  const [filter, setFilter] =
+    useState("todos");
+
+
+  const [
+    mobileNav,
+    setMobileNav,
+  ] =
     useState(false);
 
-  const [createOpen, setCreateOpen] =
+
+  const [
+    authReady,
+    setAuthReady,
+  ] =
     useState(false);
 
-  const [updateOpen, setUpdateOpen] =
-    useState(false);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    teacherName,
+    setTeacherName,
+  ] =
+    useState("Profesor Kevin");
+
+
+  const [loading, setLoading] =
+    useState(true);
+
+
+  const [
+    changingGroup,
+    setChangingGroup,
+  ] =
+    useState<number | null>(null);
+
 
   const [notice, setNotice] =
     useState("");
 
-  const [authReady, setAuthReady] =
-    useState(false);
 
-  const [teacherName, setTeacherName] =
-    useState("Profesor Kevin");
-
-  const fileInput =
-    useRef<HTMLInputElement>(null);
+  const activeGroup =
+    useMemo(
+      () =>
+        groups.find(
+          group =>
+            group.id ===
+            activeGroupId
+        ) ?? null,
+      [
+        groups,
+        activeGroupId,
+      ]
+    );
 
 
   // ============================================================
-  // PROTEGER PANEL DEL PROFESOR
+  // AUTENTICACIÓN
   // ============================================================
 
   useEffect(() => {
 
-    let active = true;
+    let mounted = true;
 
-    async function protectAdminPanel() {
+
+    async function verifyAccess() {
 
       try {
 
         const supabase =
           await getSupabase();
 
-
-        // --------------------------------------------------------
-        // VERIFICAR SESIÓN
-        // --------------------------------------------------------
 
         const {
           data: sessionData,
@@ -401,10 +640,6 @@ export default function HomePage() {
         }
 
 
-        // --------------------------------------------------------
-        // CONSULTAR PERFIL
-        // --------------------------------------------------------
-
         const {
           data: profile,
           error,
@@ -412,12 +647,7 @@ export default function HomePage() {
           await supabase
             .from("profiles")
             .select(
-              `
-              display_name,
-              role,
-              group_id,
-              active
-              `
+              "display_name, role, active"
             )
             .eq(
               "id",
@@ -442,36 +672,8 @@ export default function HomePage() {
         }
 
 
-        // --------------------------------------------------------
-        // ADMIN
-        // --------------------------------------------------------
-
         if (
-          profile.role === "admin"
-        ) {
-
-          if (active) {
-
-            setTeacherName(
-              profile.display_name ||
-              "Profesor Kevin"
-            );
-
-            setAuthReady(true);
-          }
-
-          return;
-        }
-
-
-        // --------------------------------------------------------
-        // ESTUDIANTE
-        //
-        // Más adelante construiremos /student
-        // --------------------------------------------------------
-
-        if (
-          profile.role === "student"
+          profile.role !== "admin"
         ) {
 
           window.location.replace(
@@ -482,38 +684,38 @@ export default function HomePage() {
         }
 
 
-        // --------------------------------------------------------
-        // ROL DESCONOCIDO
-        // --------------------------------------------------------
+        if (mounted) {
 
-        await supabase.auth.signOut();
+          setTeacherName(
+            profile.display_name ||
+            "Profesor Kevin"
+          );
 
-        window.location.replace(
-          "/login"
-        );
+          setAuthReady(true);
 
+        }
 
       } catch (error) {
 
         console.error(
-          "Error verificando acceso:",
           error
         );
 
         window.location.replace(
           "/login"
         );
+
       }
 
     }
 
 
-    protectAdminPanel();
+    verifyAccess();
 
 
     return () => {
 
-      active = false;
+      mounted = false;
 
     };
 
@@ -521,13 +723,174 @@ export default function HomePage() {
 
 
   // ============================================================
-  // CARGAR PROYECTOS ANTIGUOS
-  //
-  // Esto todavía existe temporalmente.
-  //
-  // En el siguiente paso lo reemplazaremos por los 20 grupos
-  // reales de Supabase.
+  // CARGAR DATOS REALES DE SUPABASE
   // ============================================================
+
+  async function loadDashboard() {
+
+    setLoading(true);
+
+
+    try {
+
+      const supabase =
+        await getSupabase();
+
+
+      const [
+        groupsResult,
+        stagesResult,
+        workResult,
+      ] =
+        await Promise.all([
+
+          supabase
+            .from("groups")
+            .select(
+              `
+              id,
+              members,
+              project_name,
+              logo_path,
+              active,
+              completion_approved,
+              completion_approved_at,
+              diploma_code,
+              updated_at
+              `
+            )
+            .order(
+              "id",
+              {
+                ascending: true,
+              }
+            ),
+
+
+          supabase
+            .from("stages")
+            .select(
+              `
+              id,
+              name,
+              description,
+              milestone_percent
+              `
+            )
+            .order(
+              "id",
+              {
+                ascending: true,
+              }
+            ),
+
+
+          supabase
+            .from("group_stage_work")
+            .select(
+              `
+              group_id,
+              stage_id,
+              status,
+              score,
+              content,
+              evidence_url,
+              student_comment,
+              teacher_comment,
+              revision,
+              submitted_at,
+              reviewed_at
+              `
+            )
+            .order(
+              "group_id",
+              {
+                ascending: true,
+              }
+            )
+            .order(
+              "stage_id",
+              {
+                ascending: true,
+              }
+            ),
+
+        ]);
+
+
+      if (
+        groupsResult.error
+      ) {
+        throw groupsResult.error;
+      }
+
+
+      if (
+        stagesResult.error
+      ) {
+        throw stagesResult.error;
+      }
+
+
+      if (
+        workResult.error
+      ) {
+        throw workResult.error;
+      }
+
+
+      const rawGroups =
+        (groupsResult.data ??
+          []) as GroupRow[];
+
+
+      const rawStages =
+        (stagesResult.data ??
+          []) as StageDefinition[];
+
+
+      const rawWork =
+        (workResult.data ??
+          []) as StageWork[];
+
+
+      setStages(
+        rawStages
+      );
+
+
+      setGroups(
+        rawGroups.map(
+          group =>
+            buildGroup(
+              group,
+              rawWork
+            )
+        )
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Error cargando panel:",
+        error
+      );
+
+
+      setNotice(
+        "No se pudieron cargar los grupos desde Supabase."
+      );
+
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+
 
   useEffect(() => {
 
@@ -536,502 +899,236 @@ export default function HomePage() {
     }
 
 
-    fetch("/api/projects")
-
-      .then(
-        response =>
-          response.ok
-            ? response.json()
-            : Promise.reject()
-      )
-
-      .then(data => {
-
-        if (
-          data.projects?.length
-        ) {
-
-          setProjects(
-            data.projects
-          );
-
-        }
-
-      })
-
-      .catch(
-        () => undefined
-      );
+    loadDashboard();
 
   }, [authReady]);
 
 
   // ============================================================
-  // BUSCADOR
+  // HABILITAR / DESHABILITAR GRUPO
   // ============================================================
 
-  const visibleProjects =
+  async function toggleGroup(
+    group: AtenasGroup
+  ) {
+
+    setChangingGroup(
+      group.id
+    );
+
+
+    setNotice("");
+
+
+    try {
+
+      const supabase =
+        await getSupabase();
+
+
+      const {
+        error,
+      } =
+        await supabase
+          .from("groups")
+          .update({
+            active:
+              !group.active,
+          })
+          .eq(
+            "id",
+            group.id
+          );
+
+
+      if (error) {
+        throw error;
+      }
+
+
+      setNotice(
+
+        !group.active
+
+          ? `Grupo ${group.id} habilitado.`
+
+          : `Grupo ${group.id} deshabilitado.`
+
+      );
+
+
+      await loadDashboard();
+
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+
+      setNotice(
+        "No se pudo cambiar el estado del grupo."
+      );
+
+
+    } finally {
+
+      setChangingGroup(
+        null
+      );
+
+    }
+
+  }
+
+
+  // ============================================================
+  // CERRAR SESIÓN
+  // ============================================================
+
+  async function logout() {
+
+    const supabase =
+      await getSupabase();
+
+
+    await supabase.auth.signOut();
+
+
+    window.location.replace(
+      "/login"
+    );
+
+  }
+
+
+  // ============================================================
+  // ESTADÍSTICAS
+  // ============================================================
+
+  const activeGroups =
+    groups.filter(
+      group =>
+        group.active
+    );
+
+
+  const activeCount =
+    activeGroups.length;
+
+
+  const pendingTotal =
+    groups.reduce(
+      (
+        total,
+        group
+      ) =>
+        total +
+        group.pendingReviews,
+      0
+    );
+
+
+  const averageProgress =
+    activeGroups.length
+
+      ? Math.round(
+
+          activeGroups.reduce(
+            (
+              total,
+              group
+            ) =>
+              total +
+              group.progress,
+            0
+          ) /
+          activeGroups.length
+
+        )
+
+      : 0;
+
+
+  // ============================================================
+  // FILTRADO
+  // ============================================================
+
+  const visibleGroups =
     useMemo(
-      () =>
-        projects.filter(
-          project =>
-            `
-              ${project.title}
-              ${project.team}
-              ${project.members.join(" ")}
-            `
-              .toLowerCase()
-              .includes(
-                query.toLowerCase()
+      () => {
+
+        const normalizedQuery =
+          query
+            .trim()
+            .toLowerCase();
+
+
+        return groups.filter(
+          group => {
+
+            const text =
+              `
+              ${group.id}
+              ${group.members}
+              ${group.project_name ?? ""}
+              `
+                .toLowerCase();
+
+
+            if (
+              normalizedQuery &&
+              !text.includes(
+                normalizedQuery
               )
-        ),
+            ) {
+              return false;
+            }
+
+
+            if (
+              filter === "activos"
+            ) {
+              return group.active;
+            }
+
+
+            if (
+              filter === "revision"
+            ) {
+              return (
+                group.pendingReviews > 0 ||
+                group.corrections > 0
+              );
+            }
+
+
+            if (
+              filter === "final"
+            ) {
+              return (
+                group.completion_approved
+              );
+            }
+
+
+            return true;
+
+          }
+        );
+
+      },
       [
-        projects,
+        groups,
         query,
+        filter,
       ]
     );
 
 
   // ============================================================
-  // CREAR PROYECTO
-  //
-  // Temporal.
-  //
-  // Después este botón será reemplazado por
-  // habilitar grupos desde Supabase.
-  // ============================================================
-
-  async function createProject(
-    event: FormEvent<HTMLFormElement>
-  ) {
-
-    event.preventDefault();
-
-    setSaving(true);
-
-    setNotice("");
-
-
-    const form =
-      new FormData(
-        event.currentTarget
-      );
-
-
-    const payload = {
-
-      title:
-        String(
-          form.get("title") ||
-          ""
-        ),
-
-      team:
-        String(
-          form.get("team") ||
-          ""
-        ),
-
-      members:
-        String(
-          form.get("members") ||
-          ""
-        )
-          .split(","),
-
-      summary:
-        String(
-          form.get("summary") ||
-          ""
-        ),
-
-      appUrl:
-        String(
-          form.get("appUrl") ||
-          ""
-        ),
-
-      icon:
-        String(
-          form.get("icon") ||
-          "💡"
-        ),
-
-    };
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/projects",
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                payload
-              ),
-
-          }
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error
-        );
-
-      }
-
-
-      setProjects(
-        current => [
-
-          data.project,
-
-          ...current.filter(
-            project =>
-              !sampleProjects.some(
-                sample =>
-                  sample.id ===
-                  project.id
-              )
-          ),
-
-        ]
-      );
-
-
-      setCreateOpen(false);
-
-
-      setNotice(
-        "Proyecto creado correctamente."
-      );
-
-
-    } catch (error) {
-
-      setNotice(
-
-        error instanceof Error
-
-          ? error.message
-
-          : "No se pudo crear el proyecto."
-
-      );
-
-    } finally {
-
-      setSaving(false);
-
-    }
-
-  }
-
-
-  // ============================================================
-  // REGISTRAR AVANCE
-  //
-  // Temporal.
-  //
-  // Después será sustituido por las 5 etapas.
-  // ============================================================
-
-  async function registerUpdate(
-    event: FormEvent<HTMLFormElement>
-  ) {
-
-    event.preventDefault();
-
-
-    if (!activeProject) {
-      return;
-    }
-
-
-    setSaving(true);
-
-    setNotice("");
-
-
-    const form =
-      new FormData(
-        event.currentTarget
-      );
-
-
-    const progress =
-      Number(
-        form.get("progress")
-      );
-
-
-    try {
-
-      const response =
-        await fetch(
-
-          `/api/projects/${activeProject.id}/updates`,
-
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({
-
-                title:
-                  form.get(
-                    "title"
-                  ),
-
-                detail:
-                  form.get(
-                    "detail"
-                  ),
-
-                stage:
-                  form.get(
-                    "stage"
-                  ),
-
-                progress,
-
-              }),
-
-          }
-
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error
-        );
-
-      }
-
-
-      setProjects(
-        current =>
-          current.map(
-            project =>
-              project.id ===
-              activeProject.id
-
-                ? {
-
-                    ...project,
-
-                    progress,
-
-                    stage:
-                      String(
-                        form.get(
-                          "stage"
-                        )
-                      ),
-
-                  }
-
-                : project
-          )
-      );
-
-
-      setActiveProject(
-        current =>
-          current
-
-            ? {
-
-                ...current,
-
-                progress,
-
-                stage:
-                  String(
-                    form.get(
-                      "stage"
-                    )
-                  ),
-
-              }
-
-            : current
-      );
-
-
-      setUpdateOpen(false);
-
-
-      setNotice(
-        "Avance registrado."
-      );
-
-
-    } catch (error) {
-
-      setNotice(
-
-        error instanceof Error
-
-          ? error.message
-
-          : "No se pudo registrar el avance."
-
-      );
-
-    } finally {
-
-      setSaving(false);
-
-    }
-
-  }
-
-
-  // ============================================================
-  // SUBIR EVIDENCIA ANTIGUA
-  // ============================================================
-
-  async function uploadEvidence(
-    file: File
-  ) {
-
-    if (!activeProject) {
-      return;
-    }
-
-
-    setSaving(true);
-
-    setNotice("");
-
-
-    const form =
-      new FormData();
-
-
-    form.append(
-      "file",
-      file
-    );
-
-
-    try {
-
-      const response =
-        await fetch(
-
-          `/api/projects/${activeProject.id}/evidence`,
-
-          {
-
-            method: "POST",
-
-            body: form,
-
-          }
-
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error
-        );
-
-      }
-
-
-      setActiveProject(
-        current =>
-          current
-
-            ? {
-
-                ...current,
-
-                evidenceCount:
-                  (
-                    current.evidenceCount ??
-                    0
-                  ) + 1,
-
-              }
-
-            : current
-      );
-
-
-      setNotice(
-        "Imagen guardada como evidencia."
-      );
-
-
-    } catch (error) {
-
-      setNotice(
-
-        error instanceof Error
-
-          ? error.message
-
-          : "No se pudo subir la imagen."
-
-      );
-
-    } finally {
-
-      setSaving(false);
-
-
-      if (
-        fileInput.current
-      ) {
-
-        fileInput.current.value =
-          "";
-
-      }
-
-    }
-
-  }
-
-
-  // ============================================================
-  // PANTALLA DE VERIFICACIÓN
+  // PANTALLA DE CARGA
   // ============================================================
 
   if (!authReady) {
@@ -1040,59 +1137,35 @@ export default function HomePage() {
 
       <main
         style={{
-
-          minHeight:
-            "100vh",
-
-          display:
-            "grid",
-
-          placeItems:
-            "center",
-
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
           background:
             "linear-gradient(135deg, #f5f7ff 0%, #eef9f7 100%)",
-
           fontFamily:
             "Arial, sans-serif",
-
         }}
       >
 
         <div
           style={{
-
-            textAlign:
-              "center",
-
-            color:
-              "#4b5563",
-
+            textAlign: "center",
+            color: "#4b5563",
           }}
         >
 
           <strong
             style={{
-
-              display:
-                "block",
-
-              fontSize:
-                24,
-
-              color:
-                "#1f2937",
-
-              marginBottom:
-                10,
-
+              display: "block",
+              fontSize: 24,
+              color: "#1f2937",
+              marginBottom: 10,
             }}
           >
 
             Atenas IA Lab
 
           </strong>
-
 
           Verificando acceso...
 
@@ -1106,7 +1179,7 @@ export default function HomePage() {
 
 
   // ============================================================
-  // PANEL DEL PROFESOR
+  // PANEL ADMIN
   // ============================================================
 
   return (
@@ -1114,16 +1187,12 @@ export default function HomePage() {
     <main className="app-shell">
 
 
-      {/* ===================================================== */}
       {/* SIDEBAR */}
-      {/* ===================================================== */}
 
       <aside
         className={
           mobileNav
-
             ? "app-sidebar is-open"
-
             : "app-sidebar"
         }
       >
@@ -1136,14 +1205,15 @@ export default function HomePage() {
 
           </span>
 
+
           <div>
 
             <strong>
-              Proyecto Atenas SV
+              Atenas IA Lab
             </strong>
 
             <small>
-              Innovación estudiantil
+              Inteligencia Artificial II
             </small>
 
           </div>
@@ -1152,16 +1222,12 @@ export default function HomePage() {
 
 
         <button
-
           className="close-nav"
-
           onClick={
             () =>
               setMobileNav(false)
           }
-
           aria-label="Cerrar menú"
-
         >
 
           <X />
@@ -1189,12 +1255,12 @@ export default function HomePage() {
             <FolderKanban />
 
             <span>
-              Proyectos
+              Grupos
             </span>
 
             <span className="nav-count">
 
-              {projects.length}
+              {groups.length}
 
             </span>
 
@@ -1214,11 +1280,23 @@ export default function HomePage() {
 
           <button className="nav-item">
 
-            <ImagePlus />
+            <ListChecks />
 
             <span>
-              Galería
+              Revisiones
             </span>
+
+            {
+              pendingTotal > 0 && (
+
+                <span className="nav-count">
+
+                  {pendingTotal}
+
+                </span>
+
+              )
+            }
 
           </button>
 
@@ -1228,17 +1306,16 @@ export default function HomePage() {
         <div className="sidebar-tip">
 
           <span>
-
-            <Lightbulb />
-
+            💡
           </span>
 
           <strong>
-            Próximo paso
+            Sistema de evaluación
           </strong>
 
           <p>
-            Revisar los avances pendientes de los grupos.
+            5 etapas × 4 puntos =
+            20 puntos.
           </p>
 
         </div>
@@ -1252,14 +1329,19 @@ export default function HomePage() {
 
           </div>
 
+
           <div>
 
             <strong>
+
               {teacherName}
+
             </strong>
 
             <small>
+
               Administrador
+
             </small>
 
           </div>
@@ -1269,9 +1351,7 @@ export default function HomePage() {
       </aside>
 
 
-      {/* ===================================================== */}
-      {/* CONTENIDO PRINCIPAL */}
-      {/* ===================================================== */}
+      {/* CONTENIDO */}
 
       <section className="app-main">
 
@@ -1279,16 +1359,12 @@ export default function HomePage() {
         <header className="topbar">
 
           <button
-
             className="menu-button"
-
             onClick={
               () =>
                 setMobileNav(true)
             }
-
             aria-label="Abrir menú"
-
           >
 
             <Menu />
@@ -1301,52 +1377,43 @@ export default function HomePage() {
             <Search />
 
             <input
-
               value={query}
-
               onChange={
                 event =>
                   setQuery(
                     event.target.value
                   )
               }
-
-              placeholder="Buscar proyecto o estudiante..."
-
+              placeholder="Buscar grupo, proyecto o estudiante..."
             />
 
           </label>
 
 
           <button
-
             className="notification"
-
             aria-label="Notificaciones"
-
           >
 
             <Bell />
 
-            <span />
+            {
+              pendingTotal > 0 && (
+                <span />
+              )
+            }
 
           </button>
 
 
           <Button
-
             className="primary-action"
-
-            onClick={
-              () =>
-                setCreateOpen(true)
-            }
-
+            onClick={logout}
           >
 
-            <Plus />
+            <LogOut />
 
-            Nuevo proyecto
+            Cerrar sesión
 
           </Button>
 
@@ -1356,9 +1423,7 @@ export default function HomePage() {
         <div className="workspace">
 
 
-          {/* ================================================= */}
           {/* BIENVENIDA */}
-          {/* ================================================= */}
 
           <section className="welcome-row">
 
@@ -1366,7 +1431,7 @@ export default function HomePage() {
 
               <p className="eyebrow">
 
-                Atenas IA Lab · Panel general
+                Atenas IA Lab · Panel del profesor
 
               </p>
 
@@ -1384,8 +1449,9 @@ export default function HomePage() {
 
               <p>
 
-                Organiza los proyectos de tus estudiantes
-                y acompaña cada nuevo avance.
+                Aquí puedes acompañar,
+                revisar y evaluar el
+                avance real de cada grupo.
 
               </p>
 
@@ -1396,28 +1462,14 @@ export default function HomePage() {
 
               <span>
 
-                Proyectos tecnológicos
+                Inteligencia Artificial II
 
               </span>
 
               <strong>
 
-                {projects.length} proyectos ·{" "}
-
-                {
-                  projects.reduce(
-
-                    (
-                      total,
-                      project
-                    ) =>
-                      total +
-                      project.members.length,
-
-                    0
-
-                  )
-                } estudiantes
+                {groups.length} grupos registrados ·{" "}
+                {activeCount} activos
 
               </strong>
 
@@ -1426,24 +1478,16 @@ export default function HomePage() {
           </section>
 
 
-          {/* ================================================= */}
-          {/* AVISOS */}
-          {/* ================================================= */}
-
           {
             notice && (
 
               <button
-
                 className="notice"
-
                 onClick={
                   () =>
                     setNotice("")
                 }
-
                 aria-label="Cerrar mensaje"
-
               >
 
                 {notice}
@@ -1456,16 +1500,11 @@ export default function HomePage() {
           }
 
 
-          {/* ================================================= */}
           {/* RESUMEN */}
-          {/* ================================================= */}
 
           <section
-
             className="summary-grid"
-
-            aria-label="Resumen del aula"
-
+            aria-label="Resumen general"
           >
 
             <article>
@@ -1476,25 +1515,23 @@ export default function HomePage() {
 
               </span>
 
+
               <div>
 
                 <small>
-
-                  Proyectos activos
-
+                  Grupos activos
                 </small>
 
                 <strong>
-
-                  {projects.length}
-
+                  {activeCount}
                 </strong>
 
               </div>
 
+
               <em>
 
-                Todos en marcha
+                de {groups.length} disponibles
 
               </em>
 
@@ -1509,47 +1546,23 @@ export default function HomePage() {
 
               </span>
 
+
               <div>
 
                 <small>
-
                   Avance promedio
-
                 </small>
 
                 <strong>
-
-                  {
-                    Math.round(
-
-                      projects.reduce(
-
-                        (
-                          total,
-                          project
-                        ) =>
-                          total +
-                          project.progress,
-
-                        0
-
-                      ) /
-
-                      Math.max(
-                        projects.length,
-                        1
-                      )
-
-                    )
-                  }%
-
+                  {averageProgress}%
                 </strong>
 
               </div>
 
+
               <em>
 
-                Actualizado
+                Calculado por nota
 
               </em>
 
@@ -1564,25 +1577,23 @@ export default function HomePage() {
 
               </span>
 
+
               <div>
 
                 <small>
-
-                  Avances por revisar
-
+                  Por revisar
                 </small>
 
                 <strong>
-
-                  4
-
+                  {pendingTotal}
                 </strong>
 
               </div>
 
+
               <em>
 
-                Requieren atención
+                Entregas pendientes
 
               </em>
 
@@ -1591,16 +1602,14 @@ export default function HomePage() {
           </section>
 
 
-          {/* ================================================= */}
-          {/* PROYECTOS */}
-          {/* ================================================= */}
+          {/* GRUPOS */}
 
           <Tabs
-
-            defaultValue="todos"
-
+            value={filter}
+            onValueChange={
+              setFilter
+            }
             className="project-tabs"
-
           >
 
             <div className="section-heading">
@@ -1608,14 +1617,14 @@ export default function HomePage() {
               <div>
 
                 <h2>
-
-                  Proyectos del aula
-
+                  Grupos del curso
                 </h2>
 
                 <p>
 
-                  Selecciona un grupo para ver sus etapas y evidencias.
+                  El progreso se calcula
+                  automáticamente según
+                  las etapas aprobadas.
 
                 </p>
 
@@ -1625,21 +1634,19 @@ export default function HomePage() {
               <TabsList className="filter-tabs">
 
                 <TabsTrigger value="todos">
-
                   Todos
-
                 </TabsTrigger>
 
-                <TabsTrigger value="avance">
+                <TabsTrigger value="activos">
+                  Activos
+                </TabsTrigger>
 
-                  En avance
-
+                <TabsTrigger value="revision">
+                  Revisar
                 </TabsTrigger>
 
                 <TabsTrigger value="final">
-
                   Finalizados
-
                 </TabsTrigger>
 
               </TabsList>
@@ -1647,131 +1654,75 @@ export default function HomePage() {
             </div>
 
 
-            <TabsContent value="todos">
+            <TabsContent value={filter}>
 
-              <div className="project-grid">
+              {
+                loading ? (
 
-                {
-                  visibleProjects.map(
-                    project => (
+                  <div className="empty-state tall">
 
-                      <ProjectCard
+                    Cargando grupos desde Supabase...
 
-                        key={
-                          project.id
-                        }
+                  </div>
 
-                        project={
-                          project
-                        }
+                ) : (
 
-                        onOpen={
-                          () =>
-                            setActiveProject(
-                              project
-                            )
-                        }
+                  <div className="project-grid">
 
-                      />
+                    {
+                      visibleGroups.map(
+                        group => (
 
-                    )
-                  )
-                }
+                          <GroupCard
+                            key={
+                              group.id
+                            }
+                            group={
+                              group
+                            }
+                            stages={
+                              stages
+                            }
+                            changing={
+                              changingGroup ===
+                              group.id
+                            }
+                            onOpen={
+                              () =>
+                                setActiveGroupId(
+                                  group.id
+                                )
+                            }
+                            onToggleActive={
+                              () =>
+                                toggleGroup(
+                                  group
+                                )
+                            }
+                          />
 
-
-                {
-                  visibleProjects.length === 0 && (
-
-                    <div className="empty-state">
-
-                      No encontramos un proyecto con ese nombre.
-
-                    </div>
-
-                  )
-                }
-
-
-                <button
-
-                  className="add-card"
-
-                  onClick={
-                    () =>
-                      setCreateOpen(true)
-                  }
-
-                >
-
-                  <span>
-
-                    <Plus />
-
-                  </span>
-
-                  <strong>
-
-                    Agregar nuevo proyecto
-
-                  </strong>
-
-                  <small>
-
-                    Crea la ficha de otro grupo
-
-                  </small>
-
-                </button>
-
-              </div>
-
-            </TabsContent>
+                        )
+                      )
+                    }
 
 
-            <TabsContent value="avance">
+                    {
+                      visibleGroups.length ===
+                        0 && (
 
-              <div className="project-grid">
+                        <div className="empty-state">
 
-                {
-                  projects.map(
-                    project => (
+                          No hay grupos que coincidan con este filtro.
 
-                      <ProjectCard
+                        </div>
 
-                        key={
-                          project.id
-                        }
+                      )
+                    }
 
-                        project={
-                          project
-                        }
+                  </div>
 
-                        onOpen={
-                          () =>
-                            setActiveProject(
-                              project
-                            )
-                        }
-
-                      />
-
-                    )
-                  )
-                }
-
-              </div>
-
-            </TabsContent>
-
-
-            <TabsContent value="final">
-
-              <div className="empty-state tall">
-
-                Todavía no hay proyectos finalizados.
-                ¡Cada avance los acerca a la meta!
-
-              </div>
+                )
+              }
 
             </TabsContent>
 
@@ -1782,80 +1733,56 @@ export default function HomePage() {
       </section>
 
 
-      {/* ===================================================== */}
-      {/* FONDO MENÚ MÓVIL */}
-      {/* ===================================================== */}
-
       {
         mobileNav && (
 
           <button
-
             className="nav-backdrop"
-
             aria-label="Cerrar menú"
-
             onClick={
               () =>
                 setMobileNav(false)
             }
-
           />
 
         )
       }
 
 
-      {/* ===================================================== */}
-      {/* DETALLE DEL PROYECTO */}
-      {/* ===================================================== */}
+      {/* DETALLE DEL GRUPO */}
 
       {
-        activeProject && (
+        activeGroup && (
 
           <div
-
             className="detail-overlay"
-
             role="presentation"
-
             onMouseDown={
               () =>
-                setActiveProject(null)
+                setActiveGroupId(null)
             }
-
           >
 
             <section
-
               className="detail-panel"
-
               role="dialog"
-
               aria-modal="true"
-
               aria-label={
-                `Detalle de ${activeProject.title}`
+                `Detalle del Grupo ${activeGroup.id}`
               }
-
               onMouseDown={
                 event =>
                   event.stopPropagation()
               }
-
             >
 
               <button
-
                 className="detail-close"
-
                 onClick={
                   () =>
-                    setActiveProject(null)
+                    setActiveGroupId(null)
                 }
-
                 aria-label="Cerrar"
-
               >
 
                 <X />
@@ -1864,26 +1791,29 @@ export default function HomePage() {
 
 
               <div
-
                 className="detail-hero"
-
                 style={
                   {
-
                     "--accent":
-                      activeProject.accent,
+                      CARD_COLORS[
+                        (activeGroup.id - 1) %
+                          CARD_COLORS.length
+                      ].accent,
 
                     "--soft":
-                      activeProject.soft,
-
+                      CARD_COLORS[
+                        (activeGroup.id - 1) %
+                          CARD_COLORS.length
+                      ].soft,
                   } as React.CSSProperties
                 }
-
               >
 
                 <span>
 
-                  {activeProject.icon}
+                  {activeGroup.completion_approved
+                    ? "🏆"
+                    : "🤖"}
 
                 </span>
 
@@ -1892,22 +1822,26 @@ export default function HomePage() {
 
                   <p>
 
-                    {activeProject.team}
+                    Grupo {activeGroup.id}
 
                   </p>
 
+
                   <h2>
 
-                    {activeProject.title}
+                    {
+                      activeGroup.project_name ||
+                      "Proyecto aún sin nombre"
+                    }
 
                   </h2>
+
 
                   <small>
 
                     {
-                      activeProject.members.join(
-                        " y "
-                      )
+                      activeGroup.members ||
+                      "Integrantes aún no definidos"
                     }
 
                   </small>
@@ -1923,13 +1857,15 @@ export default function HomePage() {
 
                   <span>
 
-                    Progreso del proyecto
+                    Nota y progreso
 
                   </span>
 
+
                   <strong>
 
-                    {activeProject.progress}%
+                    {activeGroup.grade}/20 ·{" "}
+                    {activeGroup.progress}%
 
                   </strong>
 
@@ -1937,12 +1873,77 @@ export default function HomePage() {
 
 
                 <Progress
-
                   value={
-                    activeProject.progress
+                    activeGroup.progress
+                  }
+                />
+
+              </div>
+
+
+              <div
+                style={{
+                  marginBottom: 20,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+
+                <span className="stage-pill">
+
+                  {
+                    activeGroup.active
+                      ? "🟢 Grupo activo"
+                      : "⚪ Grupo deshabilitado"
                   }
 
-                />
+                </span>
+
+
+                {
+                  activeGroup.pendingReviews >
+                    0 && (
+
+                    <span className="stage-pill">
+
+                      🟡 {
+                        activeGroup.pendingReviews
+                      } pendiente(s)
+
+                    </span>
+
+                  )
+                }
+
+
+                {
+                  activeGroup.corrections >
+                    0 && (
+
+                    <span className="stage-pill">
+
+                      🔄 {
+                        activeGroup.corrections
+                      } corrección(es)
+
+                    </span>
+
+                  )
+                }
+
+
+                {
+                  activeGroup.completion_approved && (
+
+                    <span className="stage-pill">
+
+                      🏆 Culminación aprobada
+
+                    </span>
+
+                  )
+                }
 
               </div>
 
@@ -1950,190 +1951,187 @@ export default function HomePage() {
               <div className="stage-list">
 
                 {
-                  activeProject.steps.map(
-                    (
-                      step,
-                      index
-                    ) => (
+                  stages.map(
+                    stage => {
 
-                      <div
+                      const work =
+                        activeGroup.stageWorks.find(
+                          item =>
+                            item.stage_id ===
+                            stage.id
+                        );
 
-                        className={
-                          step.done
 
-                            ? "stage-row done"
+                      const status =
+                        work?.status ??
+                        "locked";
 
-                            : "stage-row"
-                        }
 
-                        key={
-                          step.label
-                        }
+                      const info =
+                        STATUS_INFO[
+                          status
+                        ];
 
-                      >
 
-                        <span>
+                      const score =
+                        numberValue(
+                          work?.score
+                        );
 
-                          {
-                            step.done
 
-                              ? "✓"
+                      return (
 
-                              : index + 1
+                        <div
+                          className={
+                            status === "approved"
+                              ? "stage-row done"
+                              : "stage-row"
                           }
+                          key={
+                            stage.id
+                          }
+                        >
 
-                        </span>
-
-
-                        <div>
-
-                          <strong>
-
-                            {step.label}
-
-                          </strong>
-
-                          <small>
+                          <span>
 
                             {
-                              step.done
-
-                                ? "Etapa completada"
-
-                                : "Pendiente por desarrollar"
+                              info.icon
                             }
 
-                          </small>
+                          </span>
+
+
+                          <div
+                            style={{
+                              flex: 1,
+                            }}
+                          >
+
+                            <strong>
+
+                              Etapa {stage.id} ·{" "}
+                              {stage.name}
+
+                            </strong>
+
+
+                            <small>
+
+                              {info.label} ·{" "}
+                              {score}/4 puntos
+
+                            </small>
+
+
+                            {
+                              work?.submitted_at && (
+
+                                <small
+                                  style={{
+                                    display: "block",
+                                    marginTop: 3,
+                                  }}
+                                >
+
+                                  Enviado:{" "}
+                                  {
+                                    formatDate(
+                                      work.submitted_at
+                                    )
+                                  }
+
+                                </small>
+
+                              )
+                            }
+
+
+                            {
+                              work?.teacher_comment && (
+
+                                <small
+                                  style={{
+                                    display: "block",
+                                    marginTop: 5,
+                                  }}
+                                >
+
+                                  💬 Profesor:{" "}
+                                  {
+                                    work.teacher_comment
+                                  }
+
+                                </small>
+
+                              )
+                            }
+
+                          </div>
 
                         </div>
 
-                      </div>
+                      );
 
-                    )
+                    }
                   )
                 }
 
               </div>
 
 
-              <div className="evidence-box">
-
-                <div>
-
-                  <ImagePlus />
-
-                  <span>
-
-                    <strong>
-
-                      Evidencias del grupo (
-                      {
-                        activeProject.evidenceCount ??
-                        0
-                      }
-                      )
-
-                    </strong>
-
-                    <small>
-
-                      JPG, PNG o WebP · máximo 5 MB
-
-                    </small>
-
-                  </span>
-
-                </div>
-
-
-                <Button
-
-                  variant="outline"
-
-                  disabled={
-                    saving
-                  }
-
-                  onClick={
-                    () =>
-                      fileInput.current?.click()
-                  }
-
-                >
-
-                  Subir imágenes
-
-                </Button>
-
-
-                <input
-
-                  ref={
-                    fileInput
-                  }
-
-                  hidden
-
-                  type="file"
-
-                  accept="image/jpeg,image/png,image/webp"
-
-                  onChange={
-                    event =>
-                      event.target.files?.[0] &&
-                      uploadEvidence(
-                        event.target.files[0]
-                      )
-                  }
-
-                />
-
-              </div>
-
-
-              {
-                activeProject.appUrl && (
-
-                  <a
-
-                    className="app-link"
-
-                    href={
-                      activeProject.appUrl
-                    }
-
-                    target="_blank"
-
-                    rel="noreferrer"
-
-                  >
-
-                    Abrir aplicación del grupo
-
-                    <ChevronRight />
-
-                  </a>
-
-                )
-              }
-
-
-              <Button
-
-                className="detail-action"
-
-                onClick={
-                  () =>
-                    setUpdateOpen(true)
-                }
-
+              <div
+                style={{
+                  marginTop: 22,
+                  display: "grid",
+                  gap: 10,
+                }}
               >
 
-                <Plus />
+                {
+                  activeGroup.pendingReviews >
+                    0 && (
 
-                Registrar nuevo avance
+                    <div
+                      style={{
+                        background:
+                          "#fff7e6",
+                        borderRadius: 14,
+                        padding: 14,
+                        color:
+                          "#92400e",
+                      }}
+                    >
 
-              </Button>
+                      🟡 Este grupo tiene una entrega esperando tu revisión.
+
+                    </div>
+
+                  )
+                }
+
+
+                {
+                  activeGroup.completion_approved && (
+
+                    <div
+                      style={{
+                        background:
+                          "#ecfdf5",
+                        borderRadius: 14,
+                        padding: 14,
+                        color:
+                          "#047857",
+                      }}
+                    >
+
+                      🏆 Proyecto culminado. Diploma habilitado.
+
+                    </div>
+
+                  )
+                }
+
+              </div>
 
             </section>
 
@@ -2141,361 +2139,6 @@ export default function HomePage() {
 
         )
       }
-
-
-      {/* ===================================================== */}
-      {/* CREAR PROYECTO */}
-      {/* ===================================================== */}
-
-      <Dialog
-
-        open={
-          createOpen
-        }
-
-        onOpenChange={
-          setCreateOpen
-        }
-
-      >
-
-        <DialogContent className="form-dialog">
-
-          <DialogHeader>
-
-            <DialogTitle>
-
-              Nuevo proyecto
-
-            </DialogTitle>
-
-            <DialogDescription>
-
-              Crea la ficha del grupo y luego podrás registrar sus avances.
-
-            </DialogDescription>
-
-          </DialogHeader>
-
-
-          <form
-
-            onSubmit={
-              createProject
-            }
-
-            className="project-form"
-
-          >
-
-            <label>
-
-              Nombre del proyecto
-
-              <input
-
-                name="title"
-
-                required
-
-                placeholder="Ej. EcoAlerta"
-
-              />
-
-            </label>
-
-
-            <label>
-
-              Nombre del grupo
-
-              <input
-
-                name="team"
-
-                required
-
-                placeholder="Ej. Guardianes Verdes"
-
-              />
-
-            </label>
-
-
-            <label>
-
-              Integrantes
-
-              <input
-
-                name="members"
-
-                placeholder="Valeria, Mateo"
-
-              />
-
-              <small>
-
-                Separados por comas
-
-              </small>
-
-            </label>
-
-
-            <div className="form-row">
-
-              <label>
-
-                Ícono
-
-                <input
-
-                  name="icon"
-
-                  defaultValue="💡"
-
-                />
-
-              </label>
-
-
-              <label>
-
-                Enlace de la aplicación
-
-                <input
-
-                  name="appUrl"
-
-                  type="url"
-
-                  placeholder="https://..."
-
-                />
-
-              </label>
-
-            </div>
-
-
-            <label>
-
-              Descripción
-
-              <textarea
-
-                name="summary"
-
-                rows={3}
-
-                placeholder="¿Qué problema busca solucionar?"
-
-              />
-
-            </label>
-
-
-            <Button
-
-              disabled={
-                saving
-              }
-
-              type="submit"
-
-            >
-
-              {
-                saving
-
-                  ? "Guardando..."
-
-                  : "Crear proyecto"
-              }
-
-            </Button>
-
-          </form>
-
-        </DialogContent>
-
-      </Dialog>
-
-
-      {/* ===================================================== */}
-      {/* REGISTRAR AVANCE */}
-      {/* ===================================================== */}
-
-      <Dialog
-
-        open={
-          updateOpen
-        }
-
-        onOpenChange={
-          setUpdateOpen
-        }
-
-      >
-
-        <DialogContent className="form-dialog">
-
-          <DialogHeader>
-
-            <DialogTitle>
-
-              Registrar avance
-
-            </DialogTitle>
-
-            <DialogDescription>
-
-              Actualiza el proceso de{" "}
-              {activeProject?.title}.
-
-            </DialogDescription>
-
-          </DialogHeader>
-
-
-          <form
-
-            onSubmit={
-              registerUpdate
-            }
-
-            className="project-form"
-
-          >
-
-            <label>
-
-              Título del avance
-
-              <input
-
-                name="title"
-
-                required
-
-                placeholder="Ej. Terminamos el primer prototipo"
-
-              />
-
-            </label>
-
-
-            <label>
-
-              Detalle
-
-              <textarea
-
-                name="detail"
-
-                rows={3}
-
-                placeholder="Describe brevemente qué realizó el grupo"
-
-              />
-
-            </label>
-
-
-            <label>
-
-              Etapa actual
-
-              <select
-
-                name="stage"
-
-                defaultValue={
-                  activeProject?.stage
-                }
-
-              >
-
-                <option>
-                  Idea
-                </option>
-
-                <option>
-                  Investigación
-                </option>
-
-                <option>
-                  Diseño
-                </option>
-
-                <option>
-                  Prototipo
-                </option>
-
-                <option>
-                  Pruebas
-                </option>
-
-                <option>
-                  Producto final
-                </option>
-
-              </select>
-
-            </label>
-
-
-            <label>
-
-              Porcentaje de avance
-
-              <input
-
-                name="progress"
-
-                type="number"
-
-                min="0"
-
-                max="100"
-
-                defaultValue={
-                  activeProject?.progress
-                }
-
-                required
-
-              />
-
-            </label>
-
-
-            <Button
-
-              disabled={
-                saving
-              }
-
-              type="submit"
-
-            >
-
-              {
-                saving
-
-                  ? "Guardando..."
-
-                  : "Guardar avance"
-              }
-
-            </Button>
-
-          </form>
-
-        </DialogContent>
-
-      </Dialog>
 
     </main>
 
