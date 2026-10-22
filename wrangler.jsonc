@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "proyecto-atenas-sv",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-10-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
+
+  "secrets": {
+    "required": ["SUPABASE_SECRET_KEY"]
+  },
+
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+
+  "images": {
+    "binding": "IMAGES"
+  }
+}
