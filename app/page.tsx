@@ -12,7 +12,9 @@ import {
   Award,
   Bell,
   ChevronRight,
+  Copy,
   Eye,
+  KeyRound,
   Music2,
   FolderKanban,
   Home,
@@ -21,8 +23,10 @@ import {
   LogOut,
   Menu,
   Search,
+  ShieldCheck,
   Sparkles,
   Upload,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -85,6 +89,25 @@ type AtenasGroup = GroupRow & {
   approvedStages: number;
   currentStage: number;
   stageWorks: StageWork[];
+};
+
+type StudentAccount = {
+  id: string;
+  username: string;
+  display_name: string;
+  group_id: number;
+  active: boolean;
+};
+
+type GeneratedCredential = {
+  group_id: number;
+  username: string;
+  password: string;
+};
+
+type AccountDraft = {
+  username: string;
+  password: string;
 };
 
 const CARD_COLORS = [
@@ -346,6 +369,18 @@ export default function HomePage() {
   const [previewLoading, setPreviewLoading] =
     useState(false);
 
+  const [studentAccounts, setStudentAccounts] =
+    useState<StudentAccount[]>([]);
+
+  const [accountDrafts, setAccountDrafts] =
+    useState<Record<number, AccountDraft>>({});
+
+  const [generatedCredentials, setGeneratedCredentials] =
+    useState<GeneratedCredential[]>([]);
+
+  const [accountBusy, setAccountBusy] =
+    useState<string | null>(null);
+
   const activeGroup = useMemo(
     () =>
       groups.find((group) => group.id === activeGroupId) ??
@@ -483,8 +518,454 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!authReady) return;
+
     loadDashboard(true);
+    loadStudentAccounts();
   }, [authReady]);
+
+  async function callUsersApi(
+    method: "GET" | "POST",
+    body?: Record<string, any>
+  ) {
+    const supabase = await getSupabase();
+
+    const { data: sessionData } =
+      await supabase.auth.getSession();
+
+    const token =
+      sessionData.session?.access_token;
+
+    if (!token) {
+      throw new Error(
+        "La sesión del profesor expiró. Vuelve a iniciar sesión."
+      );
+    }
+
+    const response = await fetch(
+      "/api/admin/users",
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body
+            ? {
+                "Content-Type":
+                  "application/json",
+              }
+            : {}),
+        },
+        body: body
+          ? JSON.stringify(body)
+          : undefined,
+      }
+    );
+
+    const payload =
+      (await response
+        .json()
+        .catch(() => ({}))) as Record<
+        string,
+        any
+      >;
+
+    if (!response.ok) {
+      throw new Error(
+        String(
+          payload.error ??
+            "No se pudo completar la operación de usuarios."
+        )
+      );
+    }
+
+    return payload;
+  }
+
+  async function loadStudentAccounts() {
+    try {
+      const payload =
+        await callUsersApi("GET");
+
+      setStudentAccounts(
+        Array.isArray(payload.accounts)
+          ? payload.accounts
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Error cargando cuentas:",
+        error
+      );
+
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar las cuentas."
+      );
+    }
+  }
+
+  function generateLocalPassword() {
+    const alphabet =
+      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+    const bytes =
+      new Uint32Array(8);
+
+    crypto.getRandomValues(bytes);
+
+    let suffix = "";
+
+    for (const value of bytes) {
+      suffix +=
+        alphabet[
+          value % alphabet.length
+        ];
+    }
+
+    return `Atenas#${suffix}`;
+  }
+
+  function getAccountDraft(
+    groupId: number
+  ): AccountDraft {
+    return (
+      accountDrafts[groupId] ?? {
+        username: `grupo${groupId}`,
+        password: "",
+      }
+    );
+  }
+
+  function setAccountDraft(
+    groupId: number,
+    patch: Partial<AccountDraft>
+  ) {
+    setAccountDrafts((current) => ({
+      ...current,
+      [groupId]: {
+        username:
+          current[groupId]?.username ??
+          `grupo${groupId}`,
+        password:
+          current[groupId]?.password ??
+          "",
+        ...patch,
+      },
+    }));
+  }
+
+  function rememberCredential(
+    credential: GeneratedCredential
+  ) {
+    setGeneratedCredentials(
+      (current) => [
+        ...current.filter(
+          (item) =>
+            item.group_id !==
+            credential.group_id
+        ),
+        credential,
+      ].sort(
+        (a, b) =>
+          a.group_id - b.group_id
+      )
+    );
+  }
+
+  async function createStudentAccount(
+    group: AtenasGroup
+  ) {
+    const draft =
+      getAccountDraft(group.id);
+
+    const username =
+      draft.username.trim().toLowerCase() ||
+      `grupo${group.id}`;
+
+    const password =
+      draft.password ||
+      generateLocalPassword();
+
+    setAccountBusy(
+      `create-${group.id}`
+    );
+    setNotice("");
+
+    try {
+      const payload =
+        await callUsersApi(
+          "POST",
+          {
+            action: "create_account",
+            groupId: group.id,
+            username,
+            password,
+          }
+        );
+
+      if (payload.credential) {
+        rememberCredential(
+          payload.credential as GeneratedCredential
+        );
+      }
+
+      setNotice(
+        `✅ Cuenta del Grupo ${group.id} creada y habilitada. Guarda la contraseña mostrada.`
+      );
+
+      setAccountDraft(
+        group.id,
+        {
+          username,
+          password: "",
+        }
+      );
+
+      await Promise.all([
+        loadStudentAccounts(),
+        loadDashboard(false),
+      ]);
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo crear la cuenta."
+      );
+    } finally {
+      setAccountBusy(null);
+    }
+  }
+
+  async function createMissingAccounts() {
+    if (
+      !window.confirm(
+        "¿Crear y habilitar las cuentas que falten para los 20 grupos? Las cuentas existentes no se modificarán."
+      )
+    ) {
+      return;
+    }
+
+    setAccountBusy("bulk");
+    setNotice("");
+
+    try {
+      const payload =
+        await callUsersApi(
+          "POST",
+          {
+            action: "bulk_create",
+          }
+        );
+
+      const credentials =
+        Array.isArray(
+          payload.credentials
+        )
+          ? (payload.credentials as GeneratedCredential[])
+          : [];
+
+      setGeneratedCredentials(
+        credentials.sort(
+          (a, b) =>
+            a.group_id - b.group_id
+        )
+      );
+
+      setNotice(
+        credentials.length
+          ? `✅ Se crearon ${credentials.length} cuentas nuevas. Copia las credenciales antes de salir de esta pantalla.`
+          : "✅ Los 20 grupos ya tienen cuenta. No fue necesario crear nuevas."
+      );
+
+      await Promise.all([
+        loadStudentAccounts(),
+        loadDashboard(false),
+      ]);
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron crear las cuentas."
+      );
+    } finally {
+      setAccountBusy(null);
+    }
+  }
+
+  async function generateNewPassword(
+    account: StudentAccount
+  ) {
+    if (
+      !window.confirm(
+        `¿Generar una nueva contraseña para ${account.username}? La contraseña anterior dejará de funcionar.`
+      )
+    ) {
+      return;
+    }
+
+    setAccountBusy(
+      `password-${account.group_id}`
+    );
+    setNotice("");
+
+    try {
+      const payload =
+        await callUsersApi(
+          "POST",
+          {
+            action: "reset_password",
+            userId: account.id,
+          }
+        );
+
+      if (payload.credential) {
+        rememberCredential(
+          payload.credential as GeneratedCredential
+        );
+      }
+
+      setNotice(
+        `🔑 Contraseña del Grupo ${account.group_id} actualizada. Copia la nueva contraseña.`
+      );
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar la contraseña."
+      );
+    } finally {
+      setAccountBusy(null);
+    }
+  }
+
+  async function toggleStudentAccount(
+    account: StudentAccount
+  ) {
+    const nextActive =
+      !account.active;
+
+    setAccountBusy(
+      `active-${account.group_id}`
+    );
+    setNotice("");
+
+    try {
+      await callUsersApi(
+        "POST",
+        {
+          action:
+            "set_account_active",
+          userId: account.id,
+          active: nextActive,
+        }
+      );
+
+      setNotice(
+        nextActive
+          ? `✅ Cuenta ${account.username} habilitada.`
+          : `🚫 Cuenta ${account.username} deshabilitada.`
+      );
+
+      await loadStudentAccounts();
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo cambiar el estado de la cuenta."
+      );
+    } finally {
+      setAccountBusy(null);
+    }
+  }
+
+  async function resetGroupProject(
+    group: AtenasGroup
+  ) {
+    if (
+      !window.confirm(
+        `¿Vaciar TODO el trabajo del Grupo ${group.id}? Se eliminarán sus entregas, notas y avances y volverá a Etapa 1. La cuenta y los integrantes se conservarán.`
+      )
+    ) {
+      return;
+    }
+
+    const secondConfirmation =
+      window.prompt(
+        `Escribe RESET ${group.id} para confirmar:`
+      );
+
+    if (
+      secondConfirmation !==
+      `RESET ${group.id}`
+    ) {
+      setNotice(
+        "Limpieza cancelada."
+      );
+      return;
+    }
+
+    setAccountBusy(
+      `reset-${group.id}`
+    );
+    setNotice("");
+
+    try {
+      await callUsersApi(
+        "POST",
+        {
+          action: "reset_group",
+          groupId: group.id,
+        }
+      );
+
+      setNotice(
+        `🧹 Grupo ${group.id} vacío: 0/20, Etapa 1 editable y Etapas 2–5 bloqueadas.`
+      );
+
+      await loadDashboard(false);
+    } catch (error) {
+      console.error(error);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "No se pudo vaciar el grupo."
+      );
+    } finally {
+      setAccountBusy(null);
+    }
+  }
+
+  async function copyGeneratedCredentials() {
+    if (!generatedCredentials.length) {
+      return;
+    }
+
+    const text =
+      generatedCredentials
+        .map(
+          (credential) =>
+            `Grupo ${credential.group_id} | Usuario: ${credential.username} | Contraseña: ${credential.password}`
+        )
+        .join("\\n");
+
+    try {
+      await navigator.clipboard.writeText(
+        text
+      );
+
+      setNotice(
+        "📋 Credenciales copiadas."
+      );
+    } catch {
+      setNotice(
+        "No se pudieron copiar automáticamente. Puedes seleccionarlas manualmente."
+      );
+    }
+  }
 
   async function toggleGroup(group: AtenasGroup) {
     setChangingGroup(group.id);
@@ -1735,55 +2216,571 @@ export default function HomePage() {
                 marginBottom: 24,
               }}
             >
-              <h2 style={{ marginTop: 0 }}>
-                Estudiantes por grupo
-              </h2>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                  marginBottom: 20,
+                }}
+              >
+                <div>
+                  <small
+                    style={{
+                      color: "#6c56d9",
+                      fontWeight: 800,
+                    }}
+                  >
+                    ADMINISTRACIÓN DE ACCESOS
+                  </small>
+
+                  <h2
+                    style={{
+                      margin: "6px 0",
+                    }}
+                  >
+                    Usuarios de los 20 grupos
+                  </h2>
+
+                  <p
+                    style={{
+                      color: "#6b7280",
+                      margin: 0,
+                      maxWidth: 720,
+                    }}
+                  >
+                    Tú creas y controlas las cuentas. Los estudiantes
+                    solo reciben su usuario y contraseña y no tienen
+                    ninguna opción en la plataforma para modificarlos.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  disabled={
+                    accountBusy === "bulk"
+                  }
+                  onClick={
+                    createMissingAccounts
+                  }
+                >
+                  <UserPlus size={17} />
+                  {accountBusy === "bulk"
+                    ? "Creando cuentas..."
+                    : "Crear y habilitar cuentas faltantes 1–20"}
+                </Button>
+              </div>
+
+              <div
+                style={{
+                  borderRadius: 16,
+                  padding: 15,
+                  marginBottom: 20,
+                  background: "#eff6ff",
+                  border:
+                    "1px solid #bfdbfe",
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                }}
+              >
+                <ShieldCheck
+                  size={22}
+                  color="#2563eb"
+                />
+
+                <div>
+                  <strong>
+                    Control del profesor
+                  </strong>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      color: "#4b5563",
+                      fontSize: 13,
+                    }}
+                  >
+                    El usuario técnico interno será
+                    usuario@atenas.test, pero el alumno escribirá
+                    solamente usuario, por ejemplo{" "}
+                    <strong>grupo7</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {generatedCredentials.length >
+                0 && (
+                <div
+                  style={{
+                    marginBottom: 22,
+                    padding: 18,
+                    borderRadius: 16,
+                    background: "#f0fdf4",
+                    border:
+                      "1px solid #bbf7d0",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      gap: 12,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div>
+                      <strong>
+                        🔐 Credenciales recién generadas
+                      </strong>
+                      <small
+                        style={{
+                          display: "block",
+                          color: "#6b7280",
+                          marginTop: 3,
+                        }}
+                      >
+                        Cópialas ahora. Por seguridad, las contraseñas
+                        no pueden consultarse después.
+                      </small>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={
+                        copyGeneratedCredentials
+                      }
+                    >
+                      <Copy size={16} />
+                      Copiar todas
+                    </Button>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    {generatedCredentials.map(
+                      (credential) => (
+                        <div
+                          key={
+                            credential.group_id
+                          }
+                          style={{
+                            display:
+                              "grid",
+                            gridTemplateColumns:
+                              "90px minmax(120px,1fr) minmax(180px,1fr)",
+                            gap: 10,
+                            alignItems:
+                              "center",
+                            background:
+                              "white",
+                            borderRadius:
+                              10,
+                            padding:
+                              "10px 12px",
+                            fontSize: 13,
+                          }}
+                        >
+                          <strong>
+                            Grupo{" "}
+                            {
+                              credential.group_id
+                            }
+                          </strong>
+                          <span>
+                            Usuario:{" "}
+                            <strong>
+                              {
+                                credential.username
+                              }
+                            </strong>
+                          </span>
+                          <span>
+                            Contraseña:{" "}
+                            <strong
+                              style={{
+                                fontFamily:
+                                  "monospace",
+                              }}
+                            >
+                              {
+                                credential.password
+                              }
+                            </strong>
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "repeat(auto-fit,minmax(240px,1fr))",
-                  gap: 12,
+                    "repeat(auto-fit,minmax(300px,1fr))",
+                  gap: 14,
                 }}
               >
-                {activeGroups.map((group) => (
-                  <article
-                    key={group.id}
-                    style={{
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 15,
-                      padding: 15,
-                    }}
-                  >
-                    <small
+                {groups.map((group) => {
+                  const account =
+                    studentAccounts.find(
+                      (item) =>
+                        Number(
+                          item.group_id
+                        ) === group.id
+                    ) ?? null;
+
+                  const draft =
+                    getAccountDraft(
+                      group.id
+                    );
+
+                  return (
+                    <article
+                      key={group.id}
                       style={{
-                        color: "#6b7280",
-                        fontWeight: 800,
+                        border:
+                          "1px solid #e5e7eb",
+                        borderRadius: 17,
+                        padding: 17,
+                        display: "grid",
+                        gap: 13,
                       }}
                     >
-                      GRUPO {group.id}
-                    </small>
-                    <strong
-                      style={{
-                        display: "block",
-                        margin: "5px 0",
-                      }}
-                    >
-                      {group.members ||
-                        "Sin integrantes"}
-                    </strong>
-                    <span
-                      style={{
-                        color: "#6b7280",
-                        fontSize: 13,
-                      }}
-                    >
-                      {group.project_name ||
-                        "Proyecto sin nombre"}
-                    </span>
-                  </article>
-                ))}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <small
+                            style={{
+                              color:
+                                "#6b7280",
+                              fontWeight: 800,
+                            }}
+                          >
+                            GRUPO{" "}
+                            {group.id}
+                          </small>
+
+                          <strong
+                            style={{
+                              display:
+                                "block",
+                              marginTop: 4,
+                            }}
+                          >
+                            {group.members ||
+                              "Sin integrantes asignados"}
+                          </strong>
+                        </div>
+
+                        <span
+                          style={{
+                            height:
+                              "fit-content",
+                            borderRadius:
+                              999,
+                            padding:
+                              "5px 9px",
+                            fontSize: 11,
+                            fontWeight:
+                              800,
+                            background:
+                              account?.active
+                                ? "#ecfdf5"
+                                : account
+                                ? "#fff1f2"
+                                : "#f3f4f6",
+                            color:
+                              account?.active
+                                ? "#047857"
+                                : account
+                                ? "#be123c"
+                                : "#6b7280",
+                          }}
+                        >
+                          {account?.active
+                            ? "✅ Cuenta activa"
+                            : account
+                            ? "🚫 Cuenta desactivada"
+                            : "Sin cuenta"}
+                        </span>
+                      </div>
+
+                      <small
+                        style={{
+                          color: "#6b7280",
+                        }}
+                      >
+                        {group.project_name ||
+                          "Proyecto todavía sin nombre"}{" "}
+                        ·{" "}
+                        {group.active
+                          ? "Grupo habilitado"
+                          : "Grupo deshabilitado"}
+                      </small>
+
+                      {account ? (
+                        <>
+                          <div
+                            style={{
+                              padding: 12,
+                              borderRadius: 12,
+                              background:
+                                "#f8fafc",
+                            }}
+                          >
+                            <small
+                              style={{
+                                color:
+                                  "#6b7280",
+                              }}
+                            >
+                              Usuario
+                            </small>
+
+                            <strong
+                              style={{
+                                display:
+                                  "block",
+                                marginTop: 3,
+                                fontFamily:
+                                  "monospace",
+                              }}
+                            >
+                              {
+                                account.username
+                              }
+                            </strong>
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+                              gap: 8,
+                              flexWrap:
+                                "wrap",
+                            }}
+                          >
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                accountBusy ===
+                                `password-${group.id}`
+                              }
+                              onClick={() =>
+                                generateNewPassword(
+                                  account
+                                )
+                              }
+                            >
+                              <KeyRound
+                                size={16}
+                              />
+                              Nueva contraseña
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                accountBusy ===
+                                `active-${group.id}`
+                              }
+                              onClick={() =>
+                                toggleStudentAccount(
+                                  account
+                                )
+                              }
+                            >
+                              {account.active
+                                ? "Desactivar cuenta"
+                                : "Activar cuenta"}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 9,
+                          }}
+                        >
+                          <label
+                            style={{
+                              display:
+                                "grid",
+                              gap: 5,
+                            }}
+                          >
+                            <small>
+                              Usuario
+                            </small>
+                            <input
+                              value={
+                                draft.username
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setAccountDraft(
+                                  group.id,
+                                  {
+                                    username:
+                                      event
+                                        .target
+                                        .value,
+                                  }
+                                )
+                              }
+                              placeholder={`grupo${group.id}`}
+                              style={{
+                                minHeight: 42,
+                                border:
+                                  "1px solid #d1d5db",
+                                borderRadius:
+                                  10,
+                                padding:
+                                  "0 11px",
+                              }}
+                            />
+                          </label>
+
+                          <label
+                            style={{
+                              display:
+                                "grid",
+                              gap: 5,
+                            }}
+                          >
+                            <small>
+                              Contraseña
+                            </small>
+
+                            <div
+                              style={{
+                                display:
+                                  "grid",
+                                gridTemplateColumns:
+                                  "1fr auto",
+                                gap: 8,
+                              }}
+                            >
+                              <input
+                                value={
+                                  draft.password
+                                }
+                                onChange={(
+                                  event
+                                ) =>
+                                  setAccountDraft(
+                                    group.id,
+                                    {
+                                      password:
+                                        event
+                                          .target
+                                          .value,
+                                    }
+                                  )
+                                }
+                                placeholder="Mínimo 8 caracteres"
+                                style={{
+                                  minHeight:
+                                    42,
+                                  border:
+                                    "1px solid #d1d5db",
+                                  borderRadius:
+                                    10,
+                                  padding:
+                                    "0 11px",
+                                }}
+                              />
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  setAccountDraft(
+                                    group.id,
+                                    {
+                                      password:
+                                        generateLocalPassword(),
+                                    }
+                                  )
+                                }
+                              >
+                                Generar
+                              </Button>
+                            </div>
+                          </label>
+
+                          <Button
+                            type="button"
+                            disabled={
+                              accountBusy ===
+                              `create-${group.id}`
+                            }
+                            onClick={() =>
+                              createStudentAccount(
+                                group
+                              )
+                            }
+                          >
+                            <UserPlus
+                              size={16}
+                            />
+                            Crear cuenta
+                          </Button>
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          borderTop:
+                            "1px solid #e5e7eb",
+                          paddingTop: 12,
+                        }}
+                      >
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={
+                            accountBusy ===
+                            `reset-${group.id}`
+                          }
+                          onClick={() =>
+                            resetGroupProject(
+                              group
+                            )
+                          }
+                          style={{
+                            color: "#b45309",
+                          }}
+                        >
+                          🧹 Vaciar proyecto y volver a Etapa 1
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           )}
