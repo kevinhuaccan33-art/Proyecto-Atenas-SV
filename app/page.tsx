@@ -215,12 +215,14 @@ function Field({
 function GroupCard({
   group,
   stages,
+  logoUrl,
   onOpen,
   onToggleActive,
   changing,
 }: {
   group: AtenasGroup;
   stages: StageDefinition[];
+  logoUrl: string;
   onOpen: () => void;
   onToggleActive: () => void;
   changing: boolean;
@@ -254,14 +256,33 @@ function GroupCard({
       }
     >
       <div className="card-head">
-        <div className="project-icon">
-          {group.completion_approved
-            ? "🏆"
-            : group.pendingReviews > 0
-            ? "🟡"
-            : group.active
-            ? "🤖"
-            : "🔒"}
+        <div
+          className="project-icon"
+          style={{
+            overflow: "hidden",
+            background: logoUrl ? "white" : undefined,
+          }}
+        >
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={`Logo de ${group.project_name || `Grupo ${group.id}`}`}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                padding: 3,
+              }}
+            />
+          ) : group.completion_approved ? (
+            "🏆"
+          ) : group.pendingReviews > 0 ? (
+            "🟡"
+          ) : group.active ? (
+            "🤖"
+          ) : (
+            "🔒"
+          )}
         </div>
         <span className="stage-pill">{stageLabel}</span>
       </div>
@@ -377,6 +398,9 @@ export default function HomePage() {
 
   const [generatedCredentials, setGeneratedCredentials] =
     useState<GeneratedCredential[]>([]);
+
+  const [groupLogoUrls, setGroupLogoUrls] =
+    useState<Record<number, string>>({});
 
   const [accountBusy, setAccountBusy] =
     useState<string | null>(null);
@@ -505,6 +529,44 @@ export default function HomePage() {
       setStages(rawStages);
       setGroups(
         rawGroups.map((group) => buildGroup(group, rawWork))
+      );
+
+      const logoEntries = await Promise.all(
+        rawGroups.map(async (group) => {
+          const identityWork = rawWork.find(
+            (work) =>
+              work.group_id === group.id &&
+              work.stage_id === 1
+          );
+
+          const pendingLogoPath =
+            identityWork?.content &&
+            typeof identityWork.content === "object"
+              ? String(
+                  identityWork.content.logo_path ?? ""
+                )
+              : "";
+
+          const logoPath =
+            group.logo_path || pendingLogoPath;
+
+          if (!logoPath) {
+            return [group.id, ""] as const;
+          }
+
+          const { data, error } = await supabase.storage
+            .from("project-assets")
+            .createSignedUrl(logoPath, 3600);
+
+          return [
+            group.id,
+            !error && data?.signedUrl ? data.signedUrl : "",
+          ] as const;
+        })
+      );
+
+      setGroupLogoUrls(
+        Object.fromEntries(logoEntries)
       );
     } catch (error) {
       console.error("Error cargando panel:", error);
@@ -2939,6 +3001,7 @@ export default function HomePage() {
                   key={group.id}
                   group={group}
                   stages={stages}
+                  logoUrl={groupLogoUrls[group.id] ?? ""}
                   changing={
                     changingGroup === group.id
                   }
@@ -3140,12 +3203,35 @@ export default function HomePage() {
                 } as CSSProperties
               }
             >
-              <span>
-                {activeGroup.pendingReviews > 0
-                  ? "🟡"
-                  : activeGroup.completion_approved
-                  ? "🏆"
-                  : "🤖"}
+              <span
+                style={{
+                  overflow: "hidden",
+                  background: groupLogoUrls[activeGroup.id]
+                    ? "white"
+                    : undefined,
+                }}
+              >
+                {groupLogoUrls[activeGroup.id] ? (
+                  <img
+                    src={groupLogoUrls[activeGroup.id]}
+                    alt={`Logo de ${
+                      activeGroup.project_name ||
+                      `Grupo ${activeGroup.id}`
+                    }`}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      padding: 4,
+                    }}
+                  />
+                ) : activeGroup.pendingReviews > 0 ? (
+                  "🟡"
+                ) : activeGroup.completion_approved ? (
+                  "🏆"
+                ) : (
+                  "🤖"
+                )}
               </span>
 
               <div>
@@ -3264,6 +3350,39 @@ export default function HomePage() {
                           )}
                       </div>
                     </div>
+
+                    {work.status === "approved" && (
+                      <div
+                        style={{
+                          border: "1px solid #dbeafe",
+                          background: "#f8fbff",
+                          borderRadius: 14,
+                          padding: 14,
+                        }}
+                      >
+                        <strong
+                          style={{
+                            display: "block",
+                            marginBottom: 5,
+                            color: "#1d4ed8",
+                          }}
+                        >
+                          📂 Entrega aprobada · contenido guardado
+                        </strong>
+                        <p
+                          style={{
+                            margin: "0 0 12px",
+                            color: "#6b7280",
+                            fontSize: 13,
+                          }}
+                        >
+                          Puedes consultar nuevamente todo lo que el
+                          grupo entregó. Aprobar la etapa no elimina
+                          esta información.
+                        </p>
+                        {renderSubmission(stage, work)}
+                      </div>
+                    )}
 
                     {work.status === "approved" && (
                       <div
