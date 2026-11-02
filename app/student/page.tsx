@@ -308,9 +308,9 @@ function FrozenNotice({
           }}
         >
           {work.status === "submitted"
-            ? "El profesor está revisando esta entrega."
+            ? "El profesor está revisando esta entrega. Tus datos siguen visibles arriba en modo consulta."
             : work.status === "approved"
-            ? "La siguiente etapa está habilitada."
+            ? "La siguiente etapa está habilitada. Puedes seguir consultando todo lo que entregaste en esta etapa."
             : "Espera las indicaciones del profesor."}
         </small>
       </div>
@@ -1509,19 +1509,51 @@ export default function StudentPage() {
               color: "white",
               borderRadius: 26,
               padding: 28,
+              display: "flex",
+              gap: 18,
+              alignItems: "center",
             }}
           >
-            <small style={{ opacity: 0.85, fontWeight: 700 }}>
-              GRUPO {group.id}
-            </small>
-            <h1 style={{ margin: "10px 0 8px", fontSize: 30 }}>
-              {group.project_name ||
-                projectName ||
-                "Tu proyecto de IA"}
-            </h1>
-            <p style={{ margin: 0 }}>
-              {group.members || members || "Integrantes por definir"}
-            </p>
+            {logoPreview && (
+              <div
+                style={{
+                  width: 88,
+                  height: 88,
+                  borderRadius: 20,
+                  background: "white",
+                  overflow: "hidden",
+                  flex: "0 0 auto",
+                  display: "grid",
+                  placeItems: "center",
+                  boxShadow: "0 8px 24px rgba(15,23,42,.18)",
+                }}
+              >
+                <img
+                  src={logoPreview}
+                  alt="Logo del proyecto"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    padding: 5,
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ minWidth: 0 }}>
+              <small style={{ opacity: 0.85, fontWeight: 700 }}>
+                GRUPO {group.id}
+              </small>
+              <h1 style={{ margin: "10px 0 8px", fontSize: 30 }}>
+                {group.project_name ||
+                  projectName ||
+                  "Tu proyecto de IA"}
+              </h1>
+              <p style={{ margin: 0 }}>
+                {group.members || members || "Integrantes por definir"}
+              </p>
+            </div>
           </article>
 
           <article
@@ -1693,6 +1725,33 @@ export default function StudentPage() {
                   <p style={{ fontSize: 12, color: "#6b7280" }}>
                     {numeric(work?.score)}/4 puntos
                   </p>
+
+                  {work && status !== "locked" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        document
+                          .getElementById(`stage-${stage.id}`)
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          })
+                      }
+                      style={{
+                        width: "100%",
+                        border: "1px solid #d8d3ff",
+                        background: "#f8f7ff",
+                        color: "#5544c7",
+                        borderRadius: 9,
+                        padding: "7px 9px",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      Ver entrega
+                    </button>
+                  )}
                 </article>
               );
             })}
@@ -1701,6 +1760,7 @@ export default function StudentPage() {
 
         {stage1 && (
           <section
+            id="stage-1"
             style={{
               background: "white",
               borderRadius: 24,
@@ -1877,6 +1937,7 @@ export default function StudentPage() {
 
         {stage2 && (
           <section
+            id="stage-2"
             style={{
               background: "white",
               borderRadius: 24,
@@ -2117,6 +2178,7 @@ export default function StudentPage() {
 
         {stage3 && (
           <section
+            id="stage-3"
             style={{
               background: "white",
               borderRadius: 24,
@@ -2322,6 +2384,7 @@ export default function StudentPage() {
 
         {stage4 && (
           <section
+            id="stage-4"
             style={{
               background: "white",
               borderRadius: 24,
@@ -2615,6 +2678,7 @@ export default function StudentPage() {
 
         {stage5 && (
           <section
+            id="stage-5"
             style={{
               background: "white",
               borderRadius: 24,
