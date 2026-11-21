@@ -11,6 +11,7 @@ import {
 import {
   Award,
   Bell,
+  BrainCircuit,
   ChevronRight,
   Copy,
   Eye,
@@ -2233,6 +2234,17 @@ export default function HomePage() {
                 {pendingTotal}
               </span>
             )}
+          </button>
+
+          <button
+            className="nav-item"
+            onClick={() => {
+              setMobileNav(false);
+              window.location.href = "/ai-control";
+            }}
+          >
+            <BrainCircuit />
+            <span>Control IA</span>
           </button>
         </nav>
 
