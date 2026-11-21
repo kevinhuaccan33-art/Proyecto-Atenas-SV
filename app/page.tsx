@@ -39,6 +39,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { getSupabase } from "@/lib/supabase-browser";
+import { AiPrototypeLab } from "@/components/AiPrototypeLab";
 
 type StageStatus =
   | "locked"
@@ -3259,6 +3260,16 @@ export default function HomePage() {
                 value={activeGroup.progress}
               />
             </div>
+
+            <AiPrototypeLab
+              groupId={activeGroup.id}
+              projectName={activeGroup.project_name}
+              prototypeUrl={String(
+                activeGroup.stageWorks.find(
+                  (work) => work.stage_id === 4
+                )?.content?.prototype_url ?? ""
+              )}
+            />
 
             <div className="stage-list">
               {stages.map((stage) => {
