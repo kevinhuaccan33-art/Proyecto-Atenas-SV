@@ -373,12 +373,20 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`atenas-tm-model-${groupId}`) ?? "";
-    const parsed = extractTeachableUrl(String(prototypeUrl ?? "")) || extractTeachableUrl(saved);
+    const ignoreStageModel = window.localStorage.getItem(`atenas-tm-ignore-stage-${groupId}`) === "1";
+    const fromStage = ignoreStageModel ? "" : extractTeachableUrl(String(prototypeUrl ?? ""));
+    const parsed = fromStage || extractTeachableUrl(saved);
+
     if (parsed) {
       setModelUrl(parsed);
       setModelSource(parsed);
       setShowSetup(false);
       setStatus("Modelo configurado. Puedes usar cámara o importar una imagen.");
+    } else {
+      setModelUrl("");
+      setModelSource("");
+      setShowSetup(true);
+      setStatus("Configura el modelo pegando el enlace que entrega Teachable Machine.");
     }
   }, [groupId, prototypeUrl]);
 
@@ -439,6 +447,7 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
 
     try {
       modelRef.current = null;
+      window.localStorage.removeItem(`atenas-tm-ignore-stage-${groupId}`);
       window.localStorage.setItem(`atenas-tm-model-${groupId}`, parsed);
       setModelUrl(parsed);
       await ensureModel(parsed);
@@ -447,6 +456,31 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo conectar el modelo.");
     }
+  }
+
+  function changeModel() {
+    stopCamera();
+    modelRef.current = null;
+    setPredictions([]);
+    setImagePreview("");
+    setMode("idle");
+    setModelSource(modelUrl || "");
+    setShowSetup(true);
+    setStatus("Pega un nuevo enlace de Teachable Machine y pulsa Guardar y conectar.");
+  }
+
+  function disconnectModel() {
+    stopCamera();
+    modelRef.current = null;
+    window.localStorage.removeItem(`atenas-tm-model-${groupId}`);
+    window.localStorage.setItem(`atenas-tm-ignore-stage-${groupId}`, "1");
+    setModelUrl("");
+    setModelSource("");
+    setPredictions([]);
+    setImagePreview("");
+    setMode("idle");
+    setShowSetup(true);
+    setStatus("Modelo desconectado. Puedes pegar otro enlace cuando quieras.");
   }
 
   function stopCamera() {
@@ -595,6 +629,42 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
             )}
           </div>
         </Panel>
+      )}
+
+      {modelUrl && !showSetup && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ color: "#047857", fontWeight: 900, fontSize: 13 }}>✅ Modelo conectado</span>
+          <button
+            type="button"
+            onClick={changeModel}
+            style={{
+              border: `1px solid ${theme.accent}45`,
+              background: "white",
+              color: theme.accent,
+              borderRadius: 12,
+              padding: "8px 12px",
+              fontWeight: 850,
+              cursor: "pointer",
+            }}
+          >
+            ⚙️ Cambiar modelo
+          </button>
+          <button
+            type="button"
+            onClick={disconnectModel}
+            style={{
+              border: "1px solid #fecaca",
+              background: "#fff7f7",
+              color: "#b91c1c",
+              borderRadius: 12,
+              padding: "8px 12px",
+              fontWeight: 850,
+              cursor: "pointer",
+            }}
+          >
+            Desconectar modelo
+          </button>
+        </div>
       )}
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
