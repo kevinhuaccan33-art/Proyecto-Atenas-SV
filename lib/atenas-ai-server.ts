@@ -79,7 +79,24 @@ export async function adminFetch(path: string, init: RequestInit = {}) {
   headers.set("apikey", secret);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${SUPABASE_URL}${path}`, {
+      ...init,
+      headers,
+      signal: init.signal ?? controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Supabase tardó demasiado en responder.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!response.ok) throw new Error(await parseError(response));
   if (response.status === 204) return null;
   const text = await response.text();
@@ -92,9 +109,23 @@ export async function requireSession(request: Request): Promise<SessionProfile> 
 
   const token = authorization.slice(7);
   const secret = await getSupabaseSecret();
-  const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: secret, Authorization: `Bearer ${token}` },
-  });
+  const authController = new AbortController();
+  const authTimeoutId = setTimeout(() => authController.abort(), 12000);
+
+  let userResponse: Response;
+  try {
+    userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: secret, Authorization: `Bearer ${token}` },
+      signal: authController.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Supabase tardó demasiado en validar la sesión.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(authTimeoutId);
+  }
   if (!userResponse.ok) throw new Error("La sesión expiró. Vuelve a iniciar sesión.");
 
   const user = (await userResponse.json()) as { id?: string };
