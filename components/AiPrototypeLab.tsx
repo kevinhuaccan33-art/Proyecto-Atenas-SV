@@ -356,8 +356,9 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   const [busy, setBusy] = useState(false);
   const [imagePreview, setImagePreview] = useState("");
   const [mode, setMode] = useState<"idle" | "camera" | "image">("idle");
-  const canvasHostRef = useRef<HTMLDivElement | null>(null);
-  const webcamRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const predictionTimerRef = useRef<number | null>(null);
   const modelRef = useRef<any>(null);
   const runningRef = useRef(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -393,11 +394,28 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   useEffect(() => {
     return () => {
       runningRef.current = false;
+
+      if (predictionTimerRef.current !== null) {
+        window.clearTimeout(predictionTimerRef.current);
+        predictionTimerRef.current = null;
+      }
+
       try {
-        webcamRef.current?.stop?.();
+        streamRef.current?.getTracks().forEach((track) => track.stop());
       } catch {
         // no-op
       }
+      streamRef.current = null;
+
+      if (videoRef.current) {
+        try {
+          videoRef.current.pause();
+          videoRef.current.srcObject = null;
+        } catch {
+          // no-op
+        }
+      }
+
       if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
     };
   }, [imagePreview]);
@@ -485,13 +503,27 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
 
   function stopCamera() {
     runningRef.current = false;
+
+    if (predictionTimerRef.current !== null) {
+      window.clearTimeout(predictionTimerRef.current);
+      predictionTimerRef.current = null;
+    }
+
     try {
-      webcamRef.current?.stop?.();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {
       // no-op
     }
-    webcamRef.current = null;
-    if (canvasHostRef.current) canvasHostRef.current.innerHTML = "";
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+        videoRef.current.srcObject = null;
+      } catch {
+        // no-op
+      }
+    }
   }
 
   async function startCamera() {
@@ -501,33 +533,83 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
 
     try {
       const model = await ensureModel();
-      const tmImage = (window as any).tmImage;
-      const webcam = new tmImage.Webcam(420, 320, true);
-      await webcam.setup();
-      await webcam.play();
-      webcamRef.current = webcam;
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Este navegador no permite usar la cámara.");
+      }
+
+      setStatus("Solicitando permiso para usar la cámara...");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
       runningRef.current = true;
       setMode("camera");
 
-      if (canvasHostRef.current) {
-        canvasHostRef.current.innerHTML = "";
-        webcam.canvas.style.width = "100%";
-        webcam.canvas.style.height = "100%";
-        webcam.canvas.style.objectFit = "cover";
-        canvasHostRef.current.appendChild(webcam.canvas);
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+
+      const video = videoRef.current;
+      if (!video) {
+        stopCamera();
+        throw new Error("No se pudo preparar la vista de cámara.");
       }
 
-      const loop = async () => {
-        if (!runningRef.current || !webcamRef.current) return;
-        webcamRef.current.update();
-        const result = (await model.predict(webcamRef.current.canvas)) as Prediction[];
-        setPredictions(sortPredictions(result));
-        window.requestAnimationFrame(loop);
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+
+      await video.play();
+
+      setStatus("✅ Cámara activa. Analizando imagen...");
+
+      const predictLoop = async () => {
+        if (!runningRef.current || !videoRef.current) return;
+
+        try {
+          if (
+            videoRef.current.readyState >= 2 &&
+            videoRef.current.videoWidth > 0 &&
+            videoRef.current.videoHeight > 0
+          ) {
+            const result = (await model.predict(videoRef.current)) as Prediction[];
+            if (runningRef.current) {
+              setPredictions(sortPredictions(result));
+            }
+          }
+        } catch (error) {
+          console.error("Error de predicción en cámara:", error);
+          if (runningRef.current) {
+            setStatus(
+              error instanceof Error
+                ? `La cámara sigue activa, pero la IA no pudo analizar este cuadro: ${error.message}`
+                : "La cámara sigue activa, pero ocurrió un error al analizar la imagen."
+            );
+          }
+        }
+
+        if (runningRef.current) {
+          predictionTimerRef.current = window.setTimeout(predictLoop, 300);
+        }
       };
 
-      loop();
+      predictionTimerRef.current = window.setTimeout(predictLoop, 250);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo iniciar la cámara.");
+      stopCamera();
+      setMode("idle");
+      setStatus(
+        error instanceof Error
+          ? `No se pudo iniciar la cámara: ${error.message}`
+          : "No se pudo iniciar la cámara."
+      );
     }
   }
 
@@ -713,7 +795,6 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
         }}
       >
         <div
-          ref={canvasHostRef}
           style={{
             minHeight: 330,
             borderRadius: 24,
@@ -725,6 +806,22 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
             position: "relative",
           }}
         >
+          {mode === "camera" && (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 330,
+                objectFit: "cover",
+                background: "#0f172a",
+                transform: "scaleX(-1)",
+              }}
+            />
+          )}
           {mode === "image" && imagePreview && (
             <img
               src={imagePreview}
