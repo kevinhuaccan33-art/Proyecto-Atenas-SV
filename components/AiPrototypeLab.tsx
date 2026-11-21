@@ -722,6 +722,7 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   );
 }
 
+
 function ScafeDemo({ theme }: { theme: Theme }) {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("Pregunta por el menú, precios, combos u ofertas.");
@@ -750,19 +751,25 @@ function ScafeDemo({ theme }: { theme: Theme }) {
   }
 
   const chips = ["¿Qué cafés tienen?", "¿Hay café con pan?", "¿Qué combos hay?", "¿Tienen ofertas?"];
+  const products = [
+    { icon: "☕", title: "Café", text: "Espresso, americano y cappuccino", meta: "Más pedido", price: "Desde S/ 4.50", pos: "78% 45%", color: "#7c3aed" },
+    { icon: "🥐", title: "Panadería", text: "Pan artesanal y croissants del día", meta: "Recién horneado", price: "Desde S/ 3.50", pos: "88% 44%", color: "#d97706" },
+    { icon: "🥪", title: "Combos", text: "Bebida + pan o merienda rápida", meta: "Recomendado", price: "Desde S/ 8.50", pos: "92% 72%", color: "#2563eb" },
+    { icon: "✨", title: "Ofertas", text: "Promociones preparadas para la demo", meta: "Horario promo", price: "2 × 1", pos: "64% 22%", color: "#db2777" },
+  ];
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel>
+      <Panel style={{ overflow: "hidden" }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && run()}
             placeholder="Ej.: ¿Tienen café con pan?"
-            style={{ ...fieldStyle, flex: "1 1 420px" }}
+            style={{ ...fieldStyle, flex: "1 1 420px", minHeight: 56, fontSize: 16 }}
           />
-          <button type="button" onClick={() => run()} style={{ ...primaryButton, background: theme.accent }}>
+          <button type="button" onClick={() => run()} style={{ ...primaryButton, background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, minHeight: 56 }}>
             <Sparkles size={18} /> Consultar
           </button>
         </div>
@@ -772,35 +779,43 @@ function ScafeDemo({ theme }: { theme: Theme }) {
               key={chip}
               type="button"
               onClick={() => run(chip)}
-              style={{ border: 0, borderRadius: 999, padding: "8px 11px", background: theme.soft, color: "#4c1d95", cursor: "pointer", fontWeight: 800 }}
+              style={{ border: `1px solid ${theme.accent}20`, borderRadius: 999, padding: "9px 13px", background: "#fff", color: theme.accent, cursor: "pointer", fontWeight: 850, boxShadow: "0 5px 16px rgba(15,23,42,.05)" }}
             >
               {chip}
             </button>
           ))}
         </div>
-        <ResultBadge accent={theme.accent}>
-          <strong style={{ color: theme.accent }}>🤖 Respuesta de la IA</strong>
-          <div style={{ marginTop: 7, fontSize: 18, lineHeight: 1.45 }}>{answer}</div>
-        </ResultBadge>
+        <div style={{ marginTop: 14, borderRadius: 20, padding: 18, background: `linear-gradient(135deg,${theme.accent}12,${theme.accent2}0e)`, border: `1px solid ${theme.accent}22`, display: "grid", gridTemplateColumns: "auto 1fr", gap: 14, alignItems: "start" }}>
+          <div style={{ width: 48, height: 48, borderRadius: 16, display: "grid", placeItems: "center", background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, color: "white", fontSize: 24, boxShadow: `0 12px 28px ${theme.accent}30` }}>🤖</div>
+          <div>
+            <strong style={{ color: theme.accent, fontSize: 13, letterSpacing: .5 }}>RESPUESTA DEL ASISTENTE</strong>
+            <div style={{ marginTop: 5, fontSize: 18, lineHeight: 1.5, color: "#1f2937" }}>{answer}</div>
+          </div>
+        </div>
       </Panel>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14 }}>
-        {[
-          ["☕", "Café", "Espresso, americano y cappuccino"],
-          ["🥐", "Panadería", "Pan fresco y croissants"],
-          ["🥪", "Combos", "Café + pan y meriendas"],
-          ["🏷️", "Ofertas", "Promociones de demostración"],
-        ].map(([icon, title, text]) => (
-          <Panel key={title} style={{ padding: 16, boxShadow: "none" }}>
-            <div style={{ fontSize: 34 }}>{icon}</div>
-            <strong style={{ display: "block", margin: "7px 0 4px" }}>{title}</strong>
-            <span style={{ color: "#64748b", fontSize: 13 }}>{text}</span>
-          </Panel>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 16 }}>
+        {products.map((item) => (
+          <div key={item.title} style={{ borderRadius: 24, overflow: "hidden", background: "#fff", border: "1px solid rgba(148,163,184,.16)", boxShadow: "0 16px 42px rgba(15,23,42,.09)", minHeight: 270 }}>
+            <div style={{ height: 125, position: "relative", backgroundImage: `linear-gradient(180deg,rgba(15,23,42,.06),rgba(15,23,42,.42)),url(${theme.image})`, backgroundSize: "cover", backgroundPosition: item.pos }}>
+              <div style={{ position: "absolute", left: 14, top: 14, width: 46, height: 46, borderRadius: 15, display: "grid", placeItems: "center", background: "rgba(255,255,255,.92)", fontSize: 25, boxShadow: "0 8px 24px rgba(15,23,42,.14)" }}>{item.icon}</div>
+              <span style={{ position: "absolute", right: 12, bottom: 12, borderRadius: 999, padding: "6px 10px", background: "rgba(255,255,255,.92)", color: item.color, fontWeight: 900, fontSize: 11 }}>{item.meta}</span>
+            </div>
+            <div style={{ padding: 17 }}>
+              <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 10 }}>
+                <strong style={{ fontSize: 19, color: "#111827" }}>{item.title}</strong>
+                <span style={{ fontSize: 12, fontWeight: 900, color: item.color }}>{item.price}</span>
+              </div>
+              <p style={{ margin: "8px 0 0", color: "#64748b", lineHeight: 1.45, fontSize: 13 }}>{item.text}</p>
+              <div style={{ marginTop: 14, height: 5, borderRadius: 999, background: "#eef2ff", overflow: "hidden" }}><div style={{ width: item.title === "Combos" ? "94%" : item.title === "Café" ? "88%" : "76%", height: "100%", background: `linear-gradient(90deg,${item.color},${theme.accent2})` }} /></div>
+            </div>
+          </div>
         ))}
       </div>
     </div>
   );
 }
+
 
 function MapForgeDemo({ theme }: { theme: Theme }) {
   const [style, setStyle] = useState("aventura");
@@ -809,36 +824,38 @@ function MapForgeDemo({ theme }: { theme: Theme }) {
   const [result, setResult] = useState("Aventura del Castillo");
 
   const maps = [
-    { name: "Aventura del Castillo", style: "aventura", difficulty: "media", players: 3, icon: "🏰", text: "Explora un castillo y completa retos." },
-    { name: "Mundo Creativo", style: "construccion", difficulty: "facil", players: 4, icon: "🧱", text: "Construye libremente en equipo." },
-    { name: "Islas de Supervivencia", style: "supervivencia", difficulty: "dificil", players: 2, icon: "🏝️", text: "Consigue recursos y sobrevive." },
-    { name: "Bosque de Exploración", style: "exploracion", difficulty: "facil", players: 2, icon: "🌲", text: "Descubre caminos, secretos y zonas ocultas." },
+    { name: "Aventura del Castillo", style: "aventura", difficulty: "media", difficultyLabel: "Media", players: 3, icon: "🏰", text: "Explora un castillo, supera retos y descubre zonas secretas.", themeLabel: "Aventura", popularity: "9.6K", pos: "78% 28%", tint: "#7c3aed" },
+    { name: "Mundo Creativo", style: "construccion", difficulty: "facil", difficultyLabel: "Fácil", players: 4, icon: "🧱", text: "Construye libremente en equipo y diseña tu propio mundo.", themeLabel: "Construcción", popularity: "12.4K", pos: "48% 70%", tint: "#2563eb" },
+    { name: "Islas de Supervivencia", style: "supervivencia", difficulty: "dificil", difficultyLabel: "Difícil", players: 2, icon: "🏝️", text: "Consigue recursos, crea refugios y sobrevive en islas flotantes.", themeLabel: "Supervivencia", popularity: "8.1K", pos: "86% 48%", tint: "#16a34a" },
+    { name: "Bosque de Exploración", style: "exploracion", difficulty: "facil", difficultyLabel: "Fácil", players: 2, icon: "🌲", text: "Descubre caminos ocultos, portales y zonas especiales.", themeLabel: "Exploración", popularity: "7.9K", pos: "14% 24%", tint: "#0891b2" },
   ];
+
+  function scoreMap(item: (typeof maps)[number]) {
+    return (
+      (item.style === style ? 3 : 0) +
+      (item.difficulty === difficulty ? 2 : 0) +
+      Math.max(0, 2 - Math.abs(item.players - players) * .5)
+    );
+  }
 
   function run() {
     const ranked = maps
-      .map((item) => ({
-        ...item,
-        score:
-          (item.style === style ? 3 : 0) +
-          (item.difficulty === difficulty ? 2 : 0) +
-          Math.max(0, 2 - Math.abs(item.players - players) * .5),
-      }))
+      .map((item) => ({ ...item, score: scoreMap(item) }))
       .sort((a, b) => b.score - a.score);
     setResult(ranked[0].name);
   }
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel>
+      <Panel style={{ background: "linear-gradient(135deg,#ffffff,#f8f7ff)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
           <label>
-            <strong style={{ fontSize: 13 }}>Estilo</strong>
+            <strong style={{ fontSize: 13 }}>Estilo de juego</strong>
             <select value={style} onChange={(e) => setStyle(e.target.value)} style={{ ...fieldStyle, marginTop: 6 }}>
-              <option value="aventura">Aventura</option>
-              <option value="construccion">Construcción</option>
-              <option value="supervivencia">Supervivencia</option>
-              <option value="exploracion">Exploración</option>
+              <option value="aventura">⚔️ Aventura</option>
+              <option value="construccion">🧱 Construcción</option>
+              <option value="supervivencia">🛡️ Supervivencia</option>
+              <option value="exploracion">🧭 Exploración</option>
             </select>
           </label>
           <label>
@@ -854,21 +871,55 @@ function MapForgeDemo({ theme }: { theme: Theme }) {
             <input type="number" min={1} max={8} value={players} onChange={(e) => setPlayers(Number(e.target.value))} style={{ ...fieldStyle, marginTop: 6 }} />
           </label>
         </div>
-        <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent, marginTop: 14 }}>
-          <BrainCircuit size={18} /> Recomendar mapa
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 14 }}>
+          <div style={{ color: "#64748b", fontSize: 13 }}>La IA compara estilo, dificultad y número de jugadores para ordenar las opciones.</div>
+          <button type="button" onClick={run} style={{ ...primaryButton, background: `linear-gradient(135deg,${theme.accent},${theme.accent2})` }}>
+            <BrainCircuit size={18} /> Recomendar mapa
+          </button>
+        </div>
       </Panel>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 16 }}>
         {maps.map((map) => {
           const selected = result === map.name;
+          const score = scoreMap(map);
+          const match = Math.min(99, Math.max(54, Math.round((score / 7) * 100)));
           return (
-            <Panel key={map.name} style={{ padding: 16, boxShadow: selected ? `0 0 0 3px ${theme.accent}55,0 18px 40px rgba(15,23,42,.14)` : "none" }}>
-              <div style={{ fontSize: 40 }}>{map.icon}</div>
-              <strong style={{ display: "block", fontSize: 18, margin: "6px 0" }}>{map.name}</strong>
-              <span style={{ color: "#64748b", fontSize: 13 }}>{map.text}</span>
-              {selected && <div style={{ marginTop: 10, color: theme.accent, fontWeight: 900 }}>✨ Recomendado por la IA</div>}
-            </Panel>
+            <div
+              key={map.name}
+              style={{
+                borderRadius: 25,
+                overflow: "hidden",
+                background: "#fff",
+                border: selected ? `2px solid ${theme.accent}88` : "1px solid rgba(148,163,184,.16)",
+                boxShadow: selected ? `0 24px 60px ${theme.accent}25` : "0 16px 40px rgba(15,23,42,.08)",
+                transform: selected ? "translateY(-3px)" : "none",
+                transition: "all .22s ease",
+              }}
+            >
+              <div style={{ height: 160, position: "relative", backgroundImage: `linear-gradient(180deg,rgba(15,23,42,.02),rgba(15,23,42,.62)),url(${theme.image})`, backgroundSize: "cover", backgroundPosition: map.pos }}>
+                <div style={{ position: "absolute", inset: "auto 14px 13px 14px", display: "flex", alignItems: "end", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, borderRadius: 999, padding: "6px 9px", background: "rgba(15,23,42,.62)", color: "white", fontSize: 11, fontWeight: 850, backdropFilter: "blur(8px)" }}>{map.icon} {map.themeLabel}</span>
+                  </div>
+                  {selected && <span style={{ borderRadius: 999, padding: "7px 10px", background: "linear-gradient(135deg,#f59e0b,#f97316)", color: "white", fontSize: 11, fontWeight: 950, boxShadow: "0 8px 22px rgba(249,115,22,.28)" }}>✨ TOP IA</span>}
+                </div>
+              </div>
+              <div style={{ padding: 17 }}>
+                <strong style={{ display: "block", fontSize: 20, color: "#111827", letterSpacing: -.25 }}>{map.name}</strong>
+                <p style={{ margin: "7px 0 13px", color: "#64748b", fontSize: 13, lineHeight: 1.45, minHeight: 38 }}>{map.text}</p>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                  <span style={{ borderRadius: 999, padding: "6px 9px", background: `${map.tint}12`, color: map.tint, fontWeight: 850, fontSize: 11 }}>🎯 {map.difficultyLabel}</span>
+                  <span style={{ borderRadius: 999, padding: "6px 9px", background: "#f1f5f9", color: "#475569", fontWeight: 850, fontSize: 11 }}>👥 {map.players} jugadores</span>
+                  <span style={{ borderRadius: 999, padding: "6px 9px", background: "#fff7ed", color: "#c2410c", fontWeight: 850, fontSize: 11 }}>🔥 {map.popularity}</span>
+                </div>
+                <div style={{ marginTop: 15, display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#eef2ff", overflow: "hidden" }}><div style={{ width: `${match}%`, height: "100%", background: `linear-gradient(90deg,${map.tint},${theme.accent})` }} /></div>
+                  <strong style={{ minWidth: 45, textAlign: "right", color: selected ? theme.accent : "#475569", fontSize: 12 }}>{match}%</strong>
+                </div>
+                <div style={{ marginTop: 7, fontSize: 11, color: selected ? theme.accent : "#94a3b8", fontWeight: selected ? 900 : 700 }}>{selected ? "Recomendación principal según tus preferencias" : "Coincidencia estimada con la búsqueda"}</div>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -1046,44 +1097,58 @@ function SafeWalkDemo({ theme }: { theme: Theme }) {
   );
 }
 
+
 function StudyQuestDemo({ theme }: { theme: Theme }) {
   const [tasks, setTasks] = useState("Estudiar Matemáticas 1 hora, hacer la tarea de Historia, repasar Ciencias, entregar el proyecto a las 6:00 p. m.");
   const [plan, setPlan] = useState<string[]>([]);
 
   function run() {
     const parts = tasks.split(/[,;\n]+/).map((item) => item.trim()).filter(Boolean).slice(0, 6);
-    const times = ["8:00", "9:15", "10:30", "12:00", "16:00", "18:00"];
+    const times = ["08:00", "09:15", "10:30", "12:00", "16:00", "18:00"];
     setPlan(parts.map((item, index) => `${times[index] ?? `${8 + index}:00`} · ${item}`));
   }
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel>
-        <strong>Escribe tus tareas y horarios</strong>
-        <textarea value={tasks} onChange={(e) => setTasks(e.target.value)} rows={4} style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 14, padding: 13, marginTop: 8, fontSize: 15 }} />
-        <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent, marginTop: 12 }}>
+      <Panel style={{ background: "linear-gradient(135deg,#ffffff,#faf8ff)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 15, display: "grid", placeItems: "center", background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, color: "white", fontSize: 22 }}>🧠</div>
+          <div><strong style={{ fontSize: 19 }}>Organizador inteligente</strong><div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>Escribe las tareas y la IA las convierte en una agenda visual.</div></div>
+        </div>
+        <textarea value={tasks} onChange={(e) => setTasks(e.target.value)} rows={4} style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 16, padding: 14, marginTop: 4, fontSize: 15, resize: "vertical", background: "#fff" }} />
+        <button type="button" onClick={run} style={{ ...primaryButton, background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, marginTop: 12 }}>
           <BrainCircuit size={18} /> Organizar con IA
         </button>
       </Panel>
 
-      <Panel>
-        <strong style={{ fontSize: 20 }}>🗓️ Tu agenda sugerida</strong>
+      <Panel style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "18px 20px", borderBottom: "1px solid #eef2f7", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <div><strong style={{ fontSize: 21 }}>🗓️ Agenda sugerida</strong><div style={{ color: "#64748b", fontSize: 12, marginTop: 3 }}>Ordenada por bloques para una demostración rápida.</div></div>
+          <span style={{ borderRadius: 999, padding: "7px 10px", background: theme.soft, color: theme.accent, fontWeight: 900, fontSize: 11 }}>{plan.length || 0} bloques</span>
+        </div>
         {plan.length === 0 ? (
-          <p style={{ color: "#64748b" }}>Pulsa “Organizar con IA” para crear una demostración de horario.</p>
+          <div style={{ padding: 24, color: "#64748b" }}>Pulsa “Organizar con IA” para crear una demostración de horario.</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginTop: 14 }}>
-            {plan.map((item, index) => (
-              <div key={`${item}-${index}`} style={{ borderRadius: 18, padding: 16, background: index % 2 ? "#eff6ff" : theme.soft, minHeight: 110 }}>
-                <strong style={{ display: "block", color: theme.accent }}>Bloque {index + 1}</strong>
-                <span style={{ display: "block", marginTop: 8, lineHeight: 1.4 }}>{item}</span>
-              </div>
-            ))}
+          <div style={{ padding: 18, display: "grid", gap: 10 }}>
+            {plan.map((item, index) => {
+              const [time, ...rest] = item.split(" · ");
+              const priority = index < 2 ? "Alta" : index < 4 ? "Media" : "Normal";
+              const color = index < 2 ? "#dc2626" : index < 4 ? "#d97706" : "#2563eb";
+              return (
+                <div key={`${item}-${index}`} style={{ display: "grid", gridTemplateColumns: "86px 1fr auto", gap: 13, alignItems: "center", padding: 14, borderRadius: 18, background: index % 2 ? "#f8fafc" : "#fff", border: "1px solid #eef2f7" }}>
+                  <div style={{ borderRadius: 14, padding: "10px 8px", textAlign: "center", background: `linear-gradient(135deg,${theme.accent}14,${theme.accent2}12)`, color: theme.accent, fontWeight: 950, fontSize: 15 }}>{time}</div>
+                  <div><strong style={{ display: "block", color: "#111827", lineHeight: 1.35 }}>{rest.join(" · ")}</strong><span style={{ color: "#94a3b8", fontSize: 11 }}>Bloque {index + 1} · planificación sugerida</span></div>
+                  <span style={{ borderRadius: 999, padding: "6px 9px", background: `${color}12`, color, fontSize: 10, fontWeight: 950 }}>{priority}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </Panel>
     </div>
   );
 }
+
 
 function SeniorCareDemo({ theme }: { theme: Theme }) {
   const [time, setTime] = useState("08:00");
@@ -1094,35 +1159,47 @@ function SeniorCareDemo({ theme }: { theme: Theme }) {
     setResult(`Recordatorio programado para las ${time}: ${reminder}.`);
   }
 
+  const cards = [
+    { icon: "💊", label: "Medicamento", value: `${time}`, note: reminder, color: "#0f766e" },
+    { icon: "❤️", label: "Bienestar", value: "Rutina", note: "Registrar pulso o actividad como demostración", color: "#e11d48" },
+    { icon: "💧", label: "Hidratación", value: "Cada 2 h", note: "Recordatorio de agua configurado como ejemplo", color: "#0284c7" },
+  ];
+
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel>
+      <Panel style={{ background: "linear-gradient(135deg,#ffffff,#fff8fb)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(150px,.5fr) minmax(240px,1.4fr) auto", gap: 12, alignItems: "end" }}>
           <label><strong style={{ fontSize: 13 }}>Hora</strong><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...fieldStyle, marginTop: 6 }} /></label>
           <label><strong style={{ fontSize: 13 }}>Recordatorio</strong><input value={reminder} onChange={(e) => setReminder(e.target.value)} style={{ ...fieldStyle, marginTop: 6 }} /></label>
-          <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent }}><Sparkles size={18} /> Crear plan</button>
+          <button type="button" onClick={run} style={{ ...primaryButton, background: `linear-gradient(135deg,${theme.accent},${theme.accent2})` }}><Sparkles size={18} /> Crear recordatorio</button>
         </div>
       </Panel>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 14 }}>
-        <Panel>
-          <strong style={{ fontSize: 19 }}>⏰ Horario de recordatorios</strong>
-          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-            <div style={{ borderRadius: 14, padding: 12, background: theme.soft }}><strong>{time}</strong> · {reminder}</div>
-            <div style={{ borderRadius: 14, padding: 12, background: "#f8fafc" }}><strong>20:00</strong> · Revisión de rutina configurada como ejemplo</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 14 }}>
+        {cards.map((card) => (
+          <div key={card.label} style={{ borderRadius: 22, padding: 17, background: "#fff", border: "1px solid rgba(148,163,184,.16)", boxShadow: "0 14px 36px rgba(15,23,42,.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 16, display: "grid", placeItems: "center", background: `${card.color}12`, fontSize: 23 }}>{card.icon}</div>
+              <div><small style={{ color: "#64748b", fontWeight: 800 }}>{card.label}</small><strong style={{ display: "block", fontSize: 19, color: card.color, marginTop: 2 }}>{card.value}</strong></div>
+            </div>
+            <p style={{ color: "#475569", fontSize: 13, lineHeight: 1.45, minHeight: 38 }}>{card.note}</p>
+            <div style={{ height: 6, borderRadius: 999, background: "#f1f5f9", overflow: "hidden" }}><div style={{ height: "100%", width: card.label === "Medicamento" ? "92%" : "74%", background: `linear-gradient(90deg,${card.color},${theme.accent})` }} /></div>
           </div>
-        </Panel>
-        <Panel>
-          <strong style={{ fontSize: 19 }}>💜 Resultado del asistente</strong>
-          <p style={{ lineHeight: 1.5, color: "#475569" }}>{result || "Configura un recordatorio y pulsa Crear plan."}</p>
-          <div style={{ borderRadius: 14, padding: 12, background: "#fff7ed", fontSize: 12, color: "#9a3412" }}>
-            Prototipo educativo: organiza recordatorios. No diagnostica ni decide tratamientos o dosis.
-          </div>
-        </Panel>
+        ))}
       </div>
+
+      <Panel style={{ display: "grid", gridTemplateColumns: "56px 1fr", gap: 14, alignItems: "start", background: `linear-gradient(135deg,${theme.accent}0d,#ffffff)` }}>
+        <div style={{ width: 54, height: 54, borderRadius: 18, display: "grid", placeItems: "center", background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, color: "white", fontSize: 25 }}>💜</div>
+        <div>
+          <small style={{ color: theme.accent, fontWeight: 950, letterSpacing: .5 }}>RESULTADO DEL ASISTENTE</small>
+          <div style={{ marginTop: 6, fontSize: 18, fontWeight: 800, color: "#1f2937" }}>{result || "Configura un recordatorio y pulsa Crear recordatorio."}</div>
+          <div style={{ marginTop: 10, borderRadius: 14, padding: 11, background: "#fff7ed", fontSize: 12, color: "#9a3412" }}>Prototipo educativo: organiza recordatorios. No diagnostica ni decide tratamientos o dosis.</div>
+        </div>
+      </Panel>
     </div>
   );
 }
+
 
 function MiniGameDemo({ theme }: { theme: Theme }) {
   const [position, setPosition] = useState(14);
@@ -1174,32 +1251,29 @@ function MiniGameDemo({ theme }: { theme: Theme }) {
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel style={{ padding: 14 }}>
-        <div
-          style={{
-            height: 300,
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 20,
-            background: "linear-gradient(#93c5fd 0 62%,#86efac 62% 74%,#854d0e 74%)",
-          }}
-        >
-          <div style={{ position: "absolute", inset: "24px 0 auto 0", textAlign: "center", fontSize: 40, opacity: .8 }}>☁️　　　　☁️　　　　　　　　☁️</div>
-          {coinPositions.map((coin) => <div key={coin} style={{ position: "absolute", left: `${coin}%`, top: "61%", fontSize: 28, transform: "translate(-50%,-50%)" }}>🪙</div>)}
-          <div style={{ position: "absolute", left: `${enemyPosition}%`, top: "58%", fontSize: 42, transform: "translate(-50%,-50%)" }}>👾</div>
-          <div style={{ position: "absolute", left: `${position}%`, top: "57%", fontSize: 48, transform: "translate(-50%,-50%)", transition: "left .2s ease" }}>🧙</div>
-          <div style={{ position: "absolute", right: 18, top: 16, borderRadius: 14, padding: "8px 10px", background: "rgba(255,255,255,.9)", fontSize: 12, fontWeight: 800 }}>🏰 META</div>
+      <div style={{ borderRadius: 26, overflow: "hidden", position: "relative", minHeight: 350, backgroundImage: `linear-gradient(180deg,rgba(15,23,42,.05),rgba(15,23,42,.58)),url(${theme.image})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 22px 58px rgba(15,23,42,.18)" }}>
+        <div style={{ position: "absolute", left: 18, right: 18, top: 18, display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ borderRadius: 999, padding: "8px 11px", background: "rgba(15,23,42,.72)", color: "white", fontWeight: 900, fontSize: 11 }}>❤️ VIDA {health}%</span>
+            <span style={{ borderRadius: 999, padding: "8px 11px", background: "rgba(15,23,42,.72)", color: "white", fontWeight: 900, fontSize: 11 }}>⚡ ENERGÍA {energy}%</span>
+            <span style={{ borderRadius: 999, padding: "8px 11px", background: "rgba(15,23,42,.72)", color: "white", fontWeight: 900, fontSize: 11 }}>🪙 {coins}</span>
+          </div>
+          <span style={{ borderRadius: 999, padding: "8px 11px", background: "rgba(255,255,255,.9)", color: theme.accent, fontWeight: 950, fontSize: 11 }}>🏰 META</span>
         </div>
-      </Panel>
+        <div style={{ position: "absolute", left: `${position}%`, bottom: 58, width: 54, height: 54, borderRadius: 18, display: "grid", placeItems: "center", background: "rgba(255,255,255,.92)", boxShadow: "0 15px 30px rgba(15,23,42,.28)", fontSize: 31, transform: "translateX(-50%)", transition: "left .2s ease" }}>🧙</div>
+        <div style={{ position: "absolute", left: `${enemyPosition}%`, bottom: 62, width: 48, height: 48, borderRadius: 16, display: "grid", placeItems: "center", background: "rgba(127,29,29,.88)", boxShadow: "0 12px 26px rgba(127,29,29,.32)", fontSize: 27, transform: "translateX(-50%)" }}>👾</div>
+        {coinPositions.map((coin) => <div key={coin} style={{ position: "absolute", left: `${coin}%`, bottom: 66, fontSize: 24, transform: "translateX(-50%)", filter: "drop-shadow(0 6px 6px rgba(15,23,42,.25))" }}>🪙</div>)}
+        <div style={{ position: "absolute", left: 20, right: 20, bottom: 18, height: 16, borderRadius: 999, background: "rgba(255,255,255,.22)", backdropFilter: "blur(6px)", overflow: "hidden" }}><div style={{ width: `${position}%`, height: "100%", borderRadius: 999, background: `linear-gradient(90deg,${theme.accent},${theme.accent2})`, transition: "width .2s ease" }} /></div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(250px,.7fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(280px,.7fr)", gap: 14 }}>
         <Panel>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             <Stat label="Vida" value={health} color="#e11d48" />
             <Stat label="Energía" value={energy} color="#f59e0b" />
             <Stat label="Monedas" value={Math.min(100, coins * 25)} color="#7c3aed" text={String(coins)} />
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
             <GameButton onClick={() => move(-10)}>⬅️ Atrás</GameButton>
             <GameButton onClick={() => move(10)}>➡️ Avanzar</GameButton>
             <GameButton onClick={collect}>🪙 Recoger</GameButton>
@@ -1209,17 +1283,17 @@ function MiniGameDemo({ theme }: { theme: Theme }) {
           </div>
         </Panel>
 
-        <Panel>
-          <small style={{ color: theme.accent, fontWeight: 900 }}>RECOMENDACIÓN DE LA IA</small>
-          <div style={{ fontSize: 24, fontWeight: 950, marginTop: 8 }}>{suggestion}</div>
-          <p style={{ color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>
-            La recomendación cambia según vida, energía y distancia al enemigo. El estudiante puede jugar y observar cómo cambia la decisión.
-          </p>
+        <Panel style={{ background: `linear-gradient(135deg,${theme.accent}10,#ffffff)` }}>
+          <small style={{ color: theme.accent, fontWeight: 950, letterSpacing: .5 }}>RECOMENDACIÓN DE LA IA</small>
+          <div style={{ fontSize: 23, fontWeight: 950, marginTop: 8, lineHeight: 1.2 }}>{suggestion}</div>
+          <p style={{ color: "#64748b", fontSize: 13, lineHeight: 1.5 }}>La recomendación cambia según vida, energía y distancia al enemigo. El estudiante juega y ve cómo cambia la decisión.</p>
+          <div style={{ borderRadius: 15, padding: 11, background: "#f8fafc", fontSize: 11, color: "#475569" }}>Distancia al enemigo: <strong>{Math.round(distanceToEnemy)}%</strong> · Posición: <strong>{position}%</strong></div>
         </Panel>
       </div>
     </div>
   );
 }
+
 
 function GenericDemo({ projectName, theme }: { projectName?: string | null; theme: Theme }) {
   const [text, setText] = useState("");
@@ -1231,13 +1305,29 @@ function GenericDemo({ projectName, theme }: { projectName?: string | null; them
   }
 
   return (
-    <Panel>
-      <strong>{projectName || theme.fallbackName} · Demostración IA</strong>
-      <p style={{ color: "#64748b", fontSize: 13 }}>Este grupo todavía no tiene un motor específico asignado; esta prueba permite explicar entrada → análisis → resultado.</p>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Escribe una entrada para analizar..." style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 14, padding: 12 }} />
-      <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent, marginTop: 12 }}><BrainCircuit size={18} /> Analizar</button>
-      {result && <ResultBadge accent={theme.accent}><strong>{result}</strong></ResultBadge>}
-    </Panel>
+    <div style={{ display: "grid", gap: 16 }}>
+      <Panel style={{ background: "linear-gradient(135deg,#ffffff,#f8f7ff)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 50, height: 50, borderRadius: 17, display: "grid", placeItems: "center", background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, color: "white" }}><BrainCircuit size={24} /></div>
+          <div><strong style={{ fontSize: 20 }}>{projectName || theme.fallbackName}</strong><div style={{ color: "#64748b", fontSize: 12, marginTop: 3 }}>Demostración del flujo entrada → análisis → resultado.</div></div>
+        </div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Escribe una entrada para analizar..." style={{ width: "100%", border: "1px solid #cbd5e1", borderRadius: 16, padding: 14, marginTop: 14, fontSize: 15, background: "#fff" }} />
+        <button type="button" onClick={run} style={{ ...primaryButton, background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, marginTop: 12 }}><BrainCircuit size={18} /> Analizar</button>
+      </Panel>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12 }}>
+        {[
+          ["1", "Entrada", text ? "Información ingresada" : "Esperando información"],
+          ["2", "Análisis", result ? "Procesamiento completado" : "Preparado para analizar"],
+          ["3", "Resultado", result || "Aquí aparecerá la salida de la demostración"],
+        ].map(([n,t,d]) => (
+          <div key={t} style={{ borderRadius: 20, padding: 16, background: "#fff", border: "1px solid #eef2f7", boxShadow: "0 12px 30px rgba(15,23,42,.06)" }}>
+            <span style={{ width: 30, height: 30, borderRadius: 10, display: "grid", placeItems: "center", background: theme.soft, color: theme.accent, fontWeight: 950 }}>{n}</span>
+            <strong style={{ display: "block", marginTop: 10 }}>{t}</strong>
+            <span style={{ display: "block", marginTop: 5, color: "#64748b", fontSize: 12, lineHeight: 1.4 }}>{d}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
