@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getSupabase } from "@/lib/supabase-browser";
+import { AiPrototypeLab } from "@/components/AiPrototypeLab";
 
 type StageStatus =
   | "locked"
@@ -1582,6 +1583,12 @@ export default function StudentPage() {
             </p>
           </article>
         </section>
+
+        <AiPrototypeLab
+          groupId={group.id}
+          projectName={group.project_name || projectName}
+          prototypeUrl={prototypeUrl}
+        />
 
         {message && (
           <button
