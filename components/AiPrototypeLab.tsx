@@ -45,6 +45,7 @@ type Theme = {
   accent2: string;
   soft: string;
   background: string;
+  image: string;
   decorations: string[];
 };
 
@@ -60,6 +61,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f5f3ff",
     background:
       "radial-gradient(circle at 12% 20%,rgba(251,191,36,.38),transparent 25%), radial-gradient(circle at 88% 12%,rgba(109,40,217,.32),transparent 25%), linear-gradient(135deg,#3f2418 0%,#6f422a 44%,#2f1b18 100%)",
+    image: "/demo-themes/scafe.png",
     decorations: ["☕", "🥐", "🍞", "🍪"],
   },
   2: {
@@ -71,6 +73,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#eef2ff",
     background:
       "radial-gradient(circle at 8% 20%,rgba(34,197,94,.48),transparent 24%), radial-gradient(circle at 88% 18%,rgba(59,130,246,.5),transparent 28%), linear-gradient(135deg,#312e81,#2563eb 55%,#60a5fa)",
+    image: "/demo-themes/innova.png",
     decorations: ["🗺️", "🏰", "🌲", "🧱"],
   },
   3: {
@@ -82,6 +85,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f5f3ff",
     background:
       "radial-gradient(circle at 8% 15%,rgba(34,197,94,.28),transparent 24%), radial-gradient(circle at 90% 15%,rgba(109,40,217,.32),transparent 25%), linear-gradient(135deg,#312e81,#5b21b6 45%,#7c3aed)",
+    image: "/demo-themes/safewalk.png",
     decorations: ["📍", "🚶", "🚦", "🏙️"],
   },
   4: {
@@ -93,6 +97,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 12% 20%,rgba(216,180,254,.5),transparent 28%), radial-gradient(circle at 90% 20%,rgba(244,114,182,.3),transparent 26%), linear-gradient(135deg,#4c1d95,#7e22ce 52%,#a855f7)",
+    image: "/demo-themes/manoslab.png",
     decorations: ["🤟", "👋", "👍", "👏"],
   },
   5: {
@@ -104,6 +109,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f5f3ff",
     background:
       "radial-gradient(circle at 10% 18%,rgba(96,165,250,.3),transparent 25%), radial-gradient(circle at 88% 12%,rgba(192,132,252,.36),transparent 25%), linear-gradient(135deg,#312e81,#5b21b6 52%,#4338ca)",
+    image: "/demo-themes/objetos.png",
     decorations: ["🎒", "📚", "🧴", "🔑"],
   },
   6: {
@@ -115,6 +121,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f5f3ff",
     background:
       "radial-gradient(circle at 10% 20%,rgba(251,191,36,.28),transparent 24%), radial-gradient(circle at 90% 18%,rgba(59,130,246,.24),transparent 25%), linear-gradient(135deg,#5b21b6,#7c3aed 50%,#9333ea)",
+    image: "/demo-themes/krono.png",
     decorations: ["⏰", "📚", "✅", "✏️"],
   },
   7: {
@@ -126,6 +133,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#fff7ed",
     background:
       "radial-gradient(circle at 10% 20%,rgba(251,191,36,.3),transparent 25%), radial-gradient(circle at 90% 16%,rgba(244,114,182,.32),transparent 24%), linear-gradient(135deg,#6d28d9,#a855f7 55%,#ec4899)",
+    image: "/demo-themes/seniorcare.png",
     decorations: ["❤️", "⏰", "💊", "📅"],
   },
   8: {
@@ -137,6 +145,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.32),transparent 25%), radial-gradient(circle at 88% 15%,rgba(192,132,252,.38),transparent 25%), linear-gradient(135deg,#4c1d95,#6d28d9 50%,#7c3aed)",
+    image: "/demo-themes/petvision.png",
     decorations: ["🐶", "🐱", "🐰", "🐾"],
   },
   9: {
@@ -148,6 +157,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(34,197,94,.5),transparent 26%), radial-gradient(circle at 90% 20%,rgba(59,130,246,.3),transparent 25%), linear-gradient(135deg,#14532d,#15803d 50%,#0f766e)",
+    image: "/demo-themes/ecodetect.png",
     decorations: ["♻️", "🌱", "🗑️", "🌎"],
   },
   10: {
@@ -159,6 +169,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 20%,rgba(34,197,94,.36),transparent 25%), radial-gradient(circle at 90% 15%,rgba(245,158,11,.3),transparent 25%), linear-gradient(135deg,#312e81,#4c1d95 52%,#6d28d9)",
+    image: "/demo-themes/pixelquest.png",
     decorations: ["🪙", "⚔️", "🏰", "⭐"],
   },
   11: {
@@ -170,6 +181,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(248,113,113,.42),transparent 26%), radial-gradient(circle at 90% 16%,rgba(250,204,21,.38),transparent 25%), linear-gradient(135deg,#166534,#16a34a 48%,#65a30d)",
+    image: "/demo-themes/frutiai.png",
     decorations: ["🍎", "🍌", "🍊", "🍓"],
   },
   12: {
@@ -181,6 +193,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.38),transparent 25%), radial-gradient(circle at 88% 16%,rgba(251,191,36,.32),transparent 25%), linear-gradient(135deg,#14532d,#15803d 50%,#65a30d)",
+    image: "/demo-themes/nutriai.png",
     decorations: ["🥗", "🥕", "🍎", "🥦"],
   },
 };
@@ -877,6 +890,16 @@ function SafeWalkDemo({ theme }: { theme: Theme }) {
   const [people, setPeople] = useState(2);
   const [incidents, setIncidents] = useState(1);
   const [result, setResult] = useState({ label: "Riesgo bajo", color: "#16a34a", confidence: 88, note: "Ruta recomendada para la simulación." });
+  const [locationQuery, setLocationQuery] = useState("Atenas SV, Los Olivos, Lima");
+  const [mapQuery, setMapQuery] = useState("Atenas SV, Los Olivos, Lima");
+  const [geoStatus, setGeoStatus] = useState("");
+  const [customMap, setCustomMap] = useState("");
+  const [showMapSetup, setShowMapSetup] = useState(false);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("atenas-safewalk-map") ?? "";
+    if (saved) setCustomMap(saved);
+  }, []);
 
   const samples: Sample[] = [
     { x: [.60, 1, 1, .05], label: "bajo" },
@@ -908,9 +931,78 @@ function SafeWalkDemo({ theme }: { theme: Theme }) {
     }
   }
 
+  function searchLocation() {
+    const next = locationQuery.trim();
+    if (next) setMapQuery(next);
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setGeoStatus("Este navegador no ofrece geolocalización.");
+      return;
+    }
+    setGeoStatus("Buscando ubicación...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = `${position.coords.latitude},${position.coords.longitude}`;
+        setLocationQuery(coords);
+        setMapQuery(coords);
+        setGeoStatus("Ubicación cargada en el mapa.");
+      },
+      () => setGeoStatus("No se pudo obtener la ubicación. Revisa el permiso del navegador."),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function extractMapSrc(value: string) {
+    const text = value.trim();
+    const iframe = text.match(/src=["']([^"']+)["']/i)?.[1];
+    const candidate = iframe || text;
+    return candidate.startsWith("https://www.google.com/maps") || candidate.startsWith("https://www.google.com/maps/d/")
+      ? candidate
+      : "";
+  }
+
+  function saveCustomMap() {
+    const src = extractMapSrc(customMap);
+    if (!src) {
+      setGeoStatus("Pega una URL o iframe válido de Google Maps / My Maps.");
+      return;
+    }
+    setCustomMap(src);
+    window.localStorage.setItem("atenas-safewalk-map", src);
+    setShowMapSetup(false);
+    setGeoStatus("Mapa personalizado guardado.");
+  }
+
+  const standardMap = `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&output=embed`;
+  const mapSrc = customMap && extractMapSrc(customMap) ? extractMapSrc(customMap) : standardMap;
+
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <Panel>
+      <Panel style={{ background: "rgba(255,255,255,.94)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(230px,1.4fr) auto auto", gap: 10, alignItems: "end" }}>
+          <label>
+            <strong style={{ fontSize: 13 }}>Ubicación para mostrar en Google Maps</strong>
+            <input value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchLocation()} style={{ ...fieldStyle, marginTop: 6 }} placeholder="Ej. Atenas SV, Los Olivos, Lima" />
+          </label>
+          <button type="button" onClick={searchLocation} style={{ ...primaryButton, background: theme.accent }}>📍 Mostrar mapa</button>
+          <button type="button" onClick={useMyLocation} style={{ ...primaryButton, background: "white", color: theme.accent, border: `1px solid ${theme.accent}55` }}>◎ Mi ubicación</button>
+        </div>
+        {geoStatus && <small style={{ display: "block", marginTop: 8, color: "#64748b" }}>{geoStatus}</small>}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <button type="button" onClick={() => setShowMapSetup((v) => !v)} style={{ border: 0, background: "transparent", color: theme.accent, fontWeight: 800, cursor: "pointer" }}>⚙️ Usar un Google My Maps personalizado</button>
+        </div>
+        {showMapSetup && (
+          <div style={{ marginTop: 10, padding: 12, borderRadius: 14, background: "#f8fafc" }}>
+            <small style={{ color: "#64748b" }}>Opcional: pega la URL o el iframe que Google My Maps te da en “Insertar en mi sitio”.</small>
+            <textarea value={customMap} onChange={(e) => setCustomMap(e.target.value)} rows={3} style={{ width: "100%", marginTop: 8, border: "1px solid #cbd5e1", borderRadius: 12, padding: 10 }} placeholder={'<iframe src="https://www.google.com/maps/d/embed?mid=..."></iframe>'} />
+            <button type="button" onClick={saveCustomMap} style={{ ...primaryButton, background: theme.accent, marginTop: 8 }}>Guardar mapa</button>
+          </div>
+        )}
+      </Panel>
+
+      <Panel style={{ background: "rgba(255,255,255,.94)" }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ flex: "1 1 230px" }}>
             <strong style={{ fontSize: 13 }}>Escenario de demostración</strong>
@@ -918,11 +1010,8 @@ function SafeWalkDemo({ theme }: { theme: Theme }) {
               {Object.entries(safeScenarios).map(([key, value]) => <option key={key} value={key}>{value.name}</option>)}
             </select>
           </label>
-          <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent }}>
-            <BrainCircuit size={18} /> Analizar ruta
-          </button>
+          <button type="button" onClick={run} style={{ ...primaryButton, background: theme.accent }}><BrainCircuit size={18} /> Analizar situación</button>
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginTop: 14 }}>
           <NumberBox label="Hora" value={hour} min={0} max={23} onChange={setHour} />
           <SelectBox label="Iluminación" value={light} onChange={setLight} options={[[0,"Baja"],[1,"Media"],[2,"Alta"]]} />
@@ -931,37 +1020,25 @@ function SafeWalkDemo({ theme }: { theme: Theme }) {
         </div>
       </Panel>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.6fr) minmax(240px,.7fr)", gap: 16 }}>
-        <Panel style={{ padding: 12, overflow: "hidden" }}>
-          <div
-            style={{
-              minHeight: 360,
-              borderRadius: 18,
-              position: "relative",
-              overflow: "hidden",
-              backgroundColor: "#eef2ff",
-              backgroundImage: "linear-gradient(#d8dee9 1px,transparent 1px),linear-gradient(90deg,#d8dee9 1px,transparent 1px)",
-              backgroundSize: "48px 48px",
-            }}
-          >
-            <div style={{ position: "absolute", inset: "9% 8%", borderRadius: 80, border: `12px solid ${result.color}`, transform: "rotate(-8deg)", opacity: .85 }} />
-            <div style={{ position: "absolute", left: "8%", top: "38%", fontSize: 42 }}>🏫</div>
-            <div style={{ position: "absolute", right: "9%", bottom: "20%", fontSize: 42 }}>🏠</div>
-            <div style={{ position: "absolute", left: "43%", top: "19%", fontSize: 36 }}>⚠️</div>
-            <div style={{ position: "absolute", left: "57%", bottom: "18%", fontSize: 36 }}>⚠️</div>
-            <div style={{ position: "absolute", left: 18, bottom: 18, borderRadius: 14, padding: "10px 12px", background: "rgba(255,255,255,.94)", fontSize: 12, fontWeight: 800 }}>
-              🟢 ruta recomendada · 🔴 zona de riesgo · 🟠 precaución
-            </div>
-          </div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.55fr) minmax(260px,.65fr)", gap: 16 }}>
+        <Panel style={{ padding: 10, overflow: "hidden", background: "rgba(255,255,255,.96)" }}>
+          <iframe
+            title="Mapa SafeWalk"
+            src={mapSrc}
+            width="100%"
+            height="430"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            style={{ border: 0, borderRadius: 18, display: "block" }}
+          />
         </Panel>
-
-        <Panel>
+        <Panel style={{ background: "rgba(255,255,255,.96)" }}>
           <small style={{ color: result.color, fontWeight: 900 }}>SIMULACIÓN EDUCATIVA</small>
-          <div style={{ fontSize: 30, fontWeight: 950, color: result.color, marginTop: 7 }}>{result.label}</div>
+          <div style={{ fontSize: 32, fontWeight: 950, color: result.color, marginTop: 7 }}>{result.label}</div>
           <div style={{ marginTop: 8, color: "#475569" }}>Confianza simulada: <strong>{Math.round(result.confidence)}%</strong></div>
           <p style={{ color: "#475569", lineHeight: 1.5 }}>{result.note}</p>
           <div style={{ borderRadius: 14, padding: 12, background: "#f8fafc", fontSize: 12, color: "#64748b" }}>
-            SafeWalk no determina seguridad real. Sirve para explicar cómo una IA podría combinar datos de una zona y clasificar el riesgo.
+            El mapa es real; la clasificación de riesgo es una simulación educativa preparada para explicar cómo trabajaría la IA. No representa seguridad real.
           </div>
         </Panel>
       </div>
@@ -1205,6 +1282,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
     accent2: "#2563eb",
     soft: "#f5f3ff",
     background: "linear-gradient(135deg,#312e81,#6d28d9,#2563eb)",
+    image: "/demo-themes/generic.png",
     decorations: ["🤖", "✨", "🧠", "⚙️"],
   };
 
@@ -1243,6 +1321,22 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
           boxShadow: "0 18px 44px rgba(15,23,42,.14)",
         }}
       >
+        <img
+          src={theme.image}
+          alt=""
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            filter: "brightness(.48) saturate(1.12)",
+            transform: "scale(1.02)",
+            pointerEvents: "none",
+          }}
+        />
+        <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(15,23,42,.72),rgba(15,23,42,.28) 58%,rgba(15,23,42,.36))", pointerEvents: "none" }} />
         {theme.decorations.map((item, index) => (
           <span
             key={`${item}-${index}`}
@@ -1285,11 +1379,19 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
             inset: 0,
             zIndex: 99999,
             overflow: "auto",
-            background: theme.background,
+            background: "#0f172a",
             color: "#172033",
           }}
         >
           <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+            <div aria-hidden="true" style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+              <img
+                src={theme.image}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(.62) saturate(1.08) blur(1.2px)", transform: "scale(1.015)" }}
+              />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(15,23,42,.18),rgba(15,23,42,.48) 58%,rgba(15,23,42,.68))" }} />
+            </div>
             {theme.decorations.map((item, index) => (
               <span
                 key={`full-${item}-${index}`}
@@ -1346,9 +1448,9 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
                 </p>
               </section>
 
-              <Panel style={{ padding: "clamp(16px,2.5vw,30px)", background: "rgba(255,255,255,.95)" }}>
+              <div style={{ padding: "clamp(4px,1vw,10px)", borderRadius: 30 }}>
                 <Experience groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />
-              </Panel>
+              </div>
             </main>
           </div>
         </div>
