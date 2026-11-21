@@ -47,14 +47,28 @@ export default function AiControlPage() {
     try {
       const accessToken = await token();
       if (!accessToken) throw new Error("Sesión no disponible.");
-      const response = await fetch("/api/admin/ai", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const data = await response.json();
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+
+      let response: Response;
+      try {
+        response = await fetch("/api/admin/ai", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "No se pudo cargar.");
       setConfig(data);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "No se pudo cargar la configuración.");
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setNotice("La conexión con el servidor tardó demasiado. Revisa Supabase o vuelve a intentar.");
+      } else {
+        setNotice(error instanceof Error ? error.message : "No se pudo cargar la configuración.");
+      }
     } finally {
       setBusy(false);
     }
@@ -140,8 +154,42 @@ export default function AiControlPage() {
     [config]
   );
 
-  if (!ready || !config) {
-    return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Inter,Segoe UI,sans-serif", background: "#f5f6fb" }}><strong>Cargando control de inteligencia artificial...</strong></main>;
+  if (!ready) {
+    return (
+      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Inter,Segoe UI,sans-serif", background: "#f5f6fb" }}>
+        <strong>Verificando acceso del profesor...</strong>
+      </main>
+    );
+  }
+
+  if (!config) {
+    return (
+      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, fontFamily: "Inter,Segoe UI,sans-serif", background: "#f5f6fb" }}>
+        <section style={{ width: "min(620px,100%)", borderRadius: 24, padding: 26, background: "white", boxShadow: "0 18px 55px rgba(15,23,42,.10)", border: "1px solid #e2e8f0" }}>
+          <div style={{ fontSize: 34 }}>⚠️</div>
+          <h1 style={{ margin: "10px 0 6px", fontSize: 24 }}>No se pudo cargar el control de IA</h1>
+          <p style={{ margin: 0, color: "#64748b", lineHeight: 1.6 }}>
+            {notice || (busy ? "Consultando la configuración..." : "El servidor no devolvió la configuración.")}
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+            <button
+              type="button"
+              onClick={load}
+              disabled={busy}
+              style={{ border: 0, borderRadius: 14, minHeight: 46, padding: "0 18px", background: "#6d28d9", color: "white", fontWeight: 900, cursor: "pointer" }}
+            >
+              {busy ? "Reintentando..." : "Reintentar"}
+            </button>
+            <a
+              href="/"
+              style={{ border: "1px solid #cbd5e1", borderRadius: 14, minHeight: 46, padding: "0 18px", background: "white", color: "#334155", fontWeight: 850, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              Volver al panel
+            </a>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
