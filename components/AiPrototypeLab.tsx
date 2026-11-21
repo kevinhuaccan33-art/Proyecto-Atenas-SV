@@ -1288,6 +1288,8 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
 
   const [open, setOpen] = useState(false);
   const displayName = projectName?.trim() || theme.fallbackName;
+  const heroRight = [4, 8, 11, 12].includes(groupId);
+  const uiFont = 'Inter, Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
 
   useEffect(() => {
     if (!open) return;
@@ -1303,7 +1305,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.();
       else await document.exitFullscreen?.();
     } catch {
-      // full-screen API is optional; overlay still fills the viewport
+      // La superposición ya ocupa toda la ventana aunque el navegador no permita fullscreen.
     }
   }
 
@@ -1311,62 +1313,77 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
     <>
       <section
         style={{
-          borderRadius: 26,
-          padding: 24,
-          margin: "20px 0",
-          color: "white",
-          background: theme.background,
-          position: "relative",
+          margin: "22px 0",
+          borderRadius: 28,
           overflow: "hidden",
-          boxShadow: "0 18px 44px rgba(15,23,42,.14)",
+          background: "#ffffff",
+          border: "1px solid rgba(148,163,184,.18)",
+          boxShadow: "0 20px 55px rgba(15,23,42,.10)",
+          fontFamily: uiFont,
         }}
       >
-        <img
-          src={theme.image}
-          alt=""
-          aria-hidden="true"
+        <div
           style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            filter: "brightness(.48) saturate(1.12)",
-            transform: "scale(1.02)",
-            pointerEvents: "none",
+            minHeight: 238,
+            position: "relative",
+            display: "grid",
+            gridTemplateColumns: "minmax(0,1.05fr) minmax(280px,.95fr)",
+            alignItems: "stretch",
           }}
-        />
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(15,23,42,.72),rgba(15,23,42,.28) 58%,rgba(15,23,42,.36))", pointerEvents: "none" }} />
-        {theme.decorations.map((item, index) => (
-          <span
-            key={`${item}-${index}`}
+        >
+          <div
             style={{
-              position: "absolute",
-              right: `${4 + index * 7}%`,
-              top: `${12 + (index % 2) * 42}%`,
-              fontSize: 34 + index * 3,
-              opacity: .16,
-              transform: `rotate(${index % 2 ? 12 : -12}deg)`,
-              pointerEvents: "none",
+              padding: "34px clamp(24px,4vw,48px)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 10,
+              position: "relative",
+              zIndex: 2,
+              background: "linear-gradient(100deg,#ffffff 0%,rgba(255,255,255,.98) 78%,rgba(255,255,255,.76) 100%)",
             }}
           >
-            {item}
-          </span>
-        ))}
-
-        <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-          <div style={{ maxWidth: 740 }}>
-            <small style={{ fontWeight: 900, letterSpacing: .8, opacity: .86 }}>LABORATORIO IA · DEMO EN VIVO</small>
-            <h2 style={{ margin: "8px 0 5px", fontSize: 28 }}>{theme.emoji} {displayName}</h2>
-            <p style={{ margin: 0, opacity: .9, lineHeight: 1.5 }}>{theme.tagline}. Abre una interfaz de presentación para demostrar la función principal de la IA.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: theme.accent, fontWeight: 900, fontSize: 13, letterSpacing: .8 }}>
+              <BrainCircuit size={18} /> LABORATORIO IA · DEMO EN VIVO
+            </div>
+            <h2 style={{ margin: 0, color: "#111827", fontSize: "clamp(28px,3vw,42px)", letterSpacing: -1.2, lineHeight: 1.04 }}>
+              {displayName}
+            </h2>
+            <p style={{ margin: 0, color: "#475569", fontSize: 17, fontWeight: 750 }}>{theme.tagline}</p>
+            <p style={{ margin: "2px 0 12px", color: "#64748b", lineHeight: 1.6, maxWidth: 650 }}>
+              Abre una interfaz de exposición preparada para demostrar entrada → IA → resultado de forma clara y visual.
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                style={{
+                  ...primaryButton,
+                  minHeight: 55,
+                  borderRadius: 16,
+                  padding: "0 24px",
+                  background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`,
+                  boxShadow: `0 15px 30px ${theme.accent}33`,
+                  fontFamily: uiFont,
+                }}
+              >
+                <Sparkles size={20} /> Probar mi proyecto IA <ChevronRight size={19} />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            style={{ ...primaryButton, minHeight: 54, background: "white", color: theme.accent, padding: "0 22px" }}
-          >
-            <Sparkles size={20} /> Probar mi proyecto IA <ChevronRight size={19} />
-          </button>
+
+          <div style={{ minHeight: 238, position: "relative", overflow: "hidden", background: theme.soft }}>
+            <img
+              src={theme.image}
+              alt=""
+              aria-hidden="true"
+              style={{ width: "100%", height: "100%", position: "absolute", inset: 0, objectFit: "cover", objectPosition: "center", filter: "saturate(1.03) contrast(1.02)" }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg,rgba(255,255,255,.42),transparent 38%)" }} />
+            <div style={{ position: "absolute", right: 18, bottom: 16, background: "rgba(255,255,255,.90)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,.65)", borderRadius: 999, padding: "9px 14px", color: theme.accent, fontWeight: 900, boxShadow: "0 8px 24px rgba(15,23,42,.12)" }}>
+              Grupo {groupId}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1379,80 +1396,108 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
             inset: 0,
             zIndex: 99999,
             overflow: "auto",
-            background: "#0f172a",
+            background: "#f4f6fb",
             color: "#172033",
+            fontFamily: uiFont,
           }}
         >
-          <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-            <div aria-hidden="true" style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-              <img
-                src={theme.image}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(.62) saturate(1.08) blur(1.2px)", transform: "scale(1.015)" }}
-              />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(15,23,42,.18),rgba(15,23,42,.48) 58%,rgba(15,23,42,.68))" }} />
+          <header
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              height: 68,
+              padding: "0 clamp(16px,3vw,34px)",
+              background: "rgba(255,255,255,.96)",
+              borderBottom: "1px solid rgba(226,232,240,.9)",
+              backdropFilter: "blur(18px)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 14, display: "grid", placeItems: "center", color: "white", background: `linear-gradient(135deg,${theme.accent},${theme.accent2})`, boxShadow: `0 8px 22px ${theme.accent}2d` }}>
+                <BrainCircuit size={23} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <strong style={{ display: "block", color: "#111827", fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Atenas IA Lab</strong>
+                <small style={{ color: "#64748b" }}>Grupo {groupId} · Demo de exposición</small>
+              </div>
             </div>
-            {theme.decorations.map((item, index) => (
-              <span
-                key={`full-${item}-${index}`}
-                style={{
-                  position: "fixed",
-                  left: index % 2 === 0 ? `${2 + index * 6}%` : "auto",
-                  right: index % 2 ? `${2 + index * 5}%` : "auto",
-                  top: `${14 + index * 19}%`,
-                  fontSize: 70,
-                  opacity: .1,
-                  pointerEvents: "none",
-                  filter: "blur(.2px)",
-                }}
-              >
-                {item}
-              </span>
-            ))}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={browserFullscreen} style={{ border: "1px solid #dbe2ea", borderRadius: 13, background: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer", color: "#334155" }} aria-label="Pantalla completa"><Maximize2 size={18} /></button>
+              <button type="button" onClick={() => setOpen(false)} style={{ border: 0, borderRadius: 13, background: "#111827", color: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer" }} aria-label="Cerrar"><X size={20} /></button>
+            </div>
+          </header>
 
-            <header
+          <section
+            style={{
+              minHeight: "clamp(300px,38vw,500px)",
+              position: "relative",
+              overflow: "hidden",
+              background: theme.soft,
+            }}
+          >
+            <img
+              src={theme.image}
+              alt=""
+              aria-hidden="true"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", filter: "saturate(1.03) contrast(1.02)" }}
+            />
+            <div
               style={{
-                position: "sticky",
-                top: 0,
-                zIndex: 3,
-                padding: "12px 22px",
-                background: "rgba(255,255,255,.94)",
-                borderBottom: "1px solid rgba(226,232,240,.8)",
-                backdropFilter: "blur(16px)",
+                position: "absolute",
+                inset: 0,
+                background: heroRight
+                  ? "linear-gradient(270deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.92) 34%,rgba(255,255,255,.25) 67%,rgba(255,255,255,0) 100%)"
+                  : "linear-gradient(90deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.92) 34%,rgba(255,255,255,.25) 67%,rgba(255,255,255,0) 100%)",
+              }}
+            />
+
+            <div
+              style={{
+                position: "relative",
+                zIndex: 2,
+                maxWidth: 1380,
+                margin: "0 auto",
+                minHeight: "inherit",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                gap: 12,
+                justifyContent: heroRight ? "flex-end" : "flex-start",
+                padding: "clamp(28px,5vw,70px) clamp(22px,5vw,72px)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 30 }}>{theme.emoji}</span>
-                <div>
-                  <strong style={{ display: "block", color: theme.accent }}>Atenas IA Lab</strong>
-                  <small style={{ color: "#64748b" }}>Grupo {groupId} · Demo de exposición</small>
+              <div style={{ width: "min(590px,100%)", textAlign: heroRight ? "right" : "left" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 999, padding: "8px 13px", background: `${theme.accent}12`, color: theme.accent, fontSize: 12, fontWeight: 900, letterSpacing: .7, marginBottom: 14 }}>
+                  <Sparkles size={15} /> PROYECTO DE INTELIGENCIA ARTIFICIAL
                 </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" onClick={browserFullscreen} style={{ border: "1px solid #cbd5e1", borderRadius: 12, background: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer" }} aria-label="Pantalla completa"><Maximize2 size={18} /></button>
-                <button type="button" onClick={() => setOpen(false)} style={{ border: 0, borderRadius: 12, background: "#111827", color: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer" }} aria-label="Cerrar"><X size={20} /></button>
-              </div>
-            </header>
-
-            <main style={{ position: "relative", zIndex: 1, maxWidth: 1380, margin: "0 auto", padding: "34px 22px 54px" }}>
-              <section style={{ textAlign: "center", color: "white", marginBottom: 26 }}>
-                <div style={{ fontSize: 54, marginBottom: 6 }}>{theme.emoji}</div>
-                <h1 style={{ margin: 0, fontSize: "clamp(34px,5vw,66px)", lineHeight: 1.02, textShadow: "0 3px 18px rgba(15,23,42,.3)" }}>{displayName}</h1>
-                <div style={{ margin: "10px auto 0", fontSize: "clamp(17px,2vw,25px)", fontWeight: 800, opacity: .94 }}>{theme.tagline}</div>
-                <p style={{ maxWidth: 760, margin: "10px auto 0", opacity: .85, lineHeight: 1.5 }}>
-                  Entrada → modelo → resultado. Esta pantalla está pensada para una demostración corta, clara y llamativa durante la exposición.
+                <h1 style={{ margin: 0, color: "#0f172a", fontSize: "clamp(40px,5.4vw,74px)", letterSpacing: -2.2, lineHeight: .98, fontWeight: 900 }}>
+                  {displayName}
+                </h1>
+                <div style={{ marginTop: 14, color: theme.accent, fontSize: "clamp(19px,2.2vw,29px)", fontWeight: 850, letterSpacing: -.4 }}>{theme.tagline}</div>
+                <p style={{ margin: heroRight ? "14px 0 0 auto" : "14px 0 0", maxWidth: 560, color: "#475569", fontSize: 16, lineHeight: 1.65 }}>
+                  Demostración sencilla para explicar qué información entra, cómo la procesa el modelo y qué resultado produce la IA.
                 </p>
-              </section>
-
-              <div style={{ padding: "clamp(4px,1vw,10px)", borderRadius: 30 }}>
-                <Experience groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />
               </div>
-            </main>
-          </div>
+            </div>
+          </section>
+
+          <main style={{ position: "relative", zIndex: 2, maxWidth: 1380, margin: "0 auto", padding: "clamp(26px,4vw,48px) clamp(16px,3vw,34px) 64px" }}>
+            <div
+              style={{
+                background: "rgba(255,255,255,.82)",
+                border: "1px solid rgba(226,232,240,.92)",
+                borderRadius: 30,
+                padding: "clamp(14px,2vw,24px)",
+                boxShadow: "0 24px 70px rgba(15,23,42,.10)",
+                backdropFilter: "blur(16px)",
+              }}
+            >
+              <Experience groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />
+            </div>
+          </main>
         </div>
       )}
     </>
