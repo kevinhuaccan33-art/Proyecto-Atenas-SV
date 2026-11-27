@@ -31,7 +31,7 @@ type ExposureSection = {
   help: string;
 };
 
-const TOTAL_SECONDS = 150;
+const TOTAL_SECONDS = 240;
 const INVALID_CANVAS_GROUPS = new Set([14]);
 
 const DEMO_TIPS: Record<number, string> = {
@@ -81,7 +81,7 @@ function buildSections(
   return [
     {
       title: "1. Presentación",
-      duration: 15,
+      duration: 20,
       label: "Quiénes somos",
       text: projectName
         ? "Somos " + (members || "el Grupo " + groupId) + " y nuestro proyecto se llama " + projectName + "."
@@ -90,35 +90,35 @@ function buildSections(
     },
     {
       title: "2. Problema",
-      duration: 25,
+      duration: 35,
       label: "¿Qué queremos resolver?",
       text: problem || emptyText("el problema"),
       help: "Explícalo con una situación concreta. Evita leer todo el párrafo del Canvas.",
     },
     {
       title: "3. Nuestra solución",
-      duration: 25,
+      duration: 35,
       label: "¿Qué proponemos?",
       text: solution || emptyText("la solución"),
       help: "Resume qué hace su proyecto y qué recibe el usuario como resultado.",
     },
     {
       title: "4. ¿Dónde está la IA?",
-      duration: 25,
+      duration: 35,
       label: "La parte inteligente",
       text: aiUse || emptyText("el uso de IA"),
       help: "Nombra claramente qué analiza, reconoce, recomienda, organiza o genera la IA.",
     },
     {
       title: "5. Demostración",
-      duration: 35,
+      duration: 65,
       label: "Mostrar, no explicar demasiado",
       text: DEMO_TIPS[groupId] || "Muestra una entrada, el procesamiento y un resultado concreto del prototipo.",
       help: "Haz solo una prueba preparada. Si algo falla, explica en una frase qué debía ocurrir y continúa.",
     },
     {
       title: "6. Beneficio y límite",
-      duration: 15,
+      duration: 30,
       label: "Impacto real",
       text:
         (beneficiaries ? "Beneficia a: " + beneficiaries : emptyText("los beneficiarios")) +
@@ -127,7 +127,7 @@ function buildSections(
     },
     {
       title: "7. Cierre",
-      duration: 10,
+      duration: 20,
       label: "Idea final",
       text: objective
         ? "Nuestro objetivo es: " + objective
@@ -265,6 +265,12 @@ export function ExposureMode({
   const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");
   const progress = Math.min(100, (elapsed / TOTAL_SECONDS) * 100);
+  const timerTone =
+    remaining <= 30
+      ? { bg: "#fff1f2", fg: "#be123c", border: "#fecdd3", label: "Cierre" }
+      : remaining <= 60
+      ? { bg: "#fffbeb", fg: "#b45309", border: "#fde68a", label: "Último minuto" }
+      : { bg: "#ecfdf5", fg: "#047857", border: "#bbf7d0", label: "Buen ritmo" };
 
   if (!open) return null;
 
@@ -312,14 +318,18 @@ export function ExposureMode({
             style={{
               borderRadius: 14,
               padding: "9px 14px",
-              background: remaining <= 20 ? "#fff1f2" : "#f8fafc",
-              color: remaining <= 20 ? "#be123c" : "#334155",
+              background: timerTone.bg,
+              color: timerTone.fg,
+              border: "1px solid " + timerTone.border,
               fontWeight: 950,
               fontVariantNumeric: "tabular-nums",
             }}
           >
             <Timer size={17} style={{ verticalAlign: "middle", marginRight: 6 }} />
             {mm}:{ss}
+            <small style={{ display: "block", marginTop: 2, fontSize: 10, letterSpacing: .4 }}>
+              {timerTone.label}
+            </small>
           </div>
           <button
             type="button"
@@ -415,7 +425,7 @@ export function ExposureMode({
             }}
           >
             <strong style={{ display: "block", padding: "6px 8px 12px" }}>
-              Estructura · 2 min 30 s
+              Estructura · máximo 4 min
             </strong>
             <div style={{ display: "grid", gap: 7 }}>
               {sections.map((section, index) => (
