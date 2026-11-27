@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +19,9 @@ type ExposureModeProps = {
   projectName?: string | null;
   accent: string;
   accent2: string;
+  canStart?: boolean;
+  disabledMessage?: string;
+  onFinished?: () => void | Promise<void>;
 };
 
 type CanvasContent = Record<string, unknown>;
@@ -144,6 +147,9 @@ export function ExposureMode({
   projectName,
   accent,
   accent2,
+  canStart = true,
+  disabledMessage = "",
+  onFinished,
 }: ExposureModeProps) {
   const [canvas, setCanvas] = useState<CanvasContent | null>(null);
   const [members, setMembers] = useState("");
@@ -151,6 +157,7 @@ export function ExposureMode({
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
+  const finishReportedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -225,8 +232,22 @@ export function ExposureMode({
     if (!open) {
       setRunning(false);
       setElapsed(0);
+      finishReportedRef.current = false;
     }
   }, [open]);
+
+  useEffect(() => {
+    if (
+      open &&
+      elapsed >= TOTAL_SECONDS &&
+      !finishReportedRef.current
+    ) {
+      finishReportedRef.current = true;
+      Promise.resolve(onFinished?.()).catch(() => {
+        // La exposición terminó aunque el guardado externo falle.
+      });
+    }
+  }, [open, elapsed, onFinished]);
 
   useEffect(() => {
     if (!open) return;
@@ -342,8 +363,10 @@ export function ExposureMode({
               background: "linear-gradient(135deg," + accent + "," + accent2 + ")",
               color: "white",
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: canStart ? "pointer" : "not-allowed",
+              opacity: canStart ? 1 : .55,
             }}
+            title={!canStart ? disabledMessage : undefined}
           >
             {running ? <Pause size={17} /> : <Play size={17} />}{" "}
             {running ? "Pausar" : elapsed ? "Continuar" : "Iniciar"}
@@ -405,6 +428,21 @@ export function ExposureMode({
       </header>
 
       <main style={{ maxWidth: 1380, margin: "0 auto", padding: "28px clamp(16px,3vw,34px) 50px" }}>
+        {!canStart && disabledMessage && (
+          <div
+            style={{
+              marginBottom: 16,
+              borderRadius: 16,
+              padding: 14,
+              background: "#fff7ed",
+              border: "1px solid #fed7aa",
+              color: "#9a3412",
+              fontWeight: 800,
+            }}
+          >
+            🔒 {disabledMessage}
+          </div>
+        )}
         <section
           style={{
             display: "grid",

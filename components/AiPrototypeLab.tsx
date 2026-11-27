@@ -34,6 +34,11 @@ type Props = {
   groupId: number;
   projectName?: string | null;
   prototypeUrl?: string | null;
+  showDemoButton?: boolean;
+  showExposureButton?: boolean;
+  exposureEnabled?: boolean;
+  exposureDisabledMessage?: string;
+  onExposureFinished?: () => void | Promise<void>;
 };
 
 type Prediction = {
@@ -570,6 +575,37 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   const runningRef = useRef(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  async function saveSharedModelUrl(url: string) {
+    try {
+      const supabase = await getSupabase();
+      const { data: current } = await supabase
+        .from("ai_project_data")
+        .select("data")
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      const previous =
+        current?.data && typeof current.data === "object"
+          ? current.data
+          : {};
+
+      await supabase
+        .from("ai_project_data")
+        .upsert(
+          {
+            group_id: groupId,
+            data: {
+              ...previous,
+              teachable_model_url: url,
+            },
+          },
+          { onConflict: "group_id" }
+        );
+    } catch (error) {
+      console.warn("No se pudo sincronizar el modelo del grupo:", error);
+    }
+  }
+
   const groupHints: Record<number, string[]> = {
     4: ["A", "B", "C", "Hola"],
     5: ["Mochila", "Celular", "Llaves", "Cuaderno", "Botella"],
@@ -595,6 +631,47 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
       setStatus("Configura el modelo pegando el enlace que entrega Teachable Machine.");
     }
   }, [groupId, prototypeUrl]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadSharedModel() {
+      try {
+        const supabase = await getSupabase();
+        const { data } = await supabase
+          .from("ai_project_data")
+          .select("data")
+          .eq("group_id", groupId)
+          .maybeSingle();
+
+        if (!alive) return;
+
+        const shared = extractTeachableUrl(
+          String(
+            data?.data && typeof data.data === "object"
+              ? data.data.teachable_model_url ?? ""
+              : ""
+          )
+        );
+
+        if (shared) {
+          window.localStorage.setItem(`atenas-tm-model-${groupId}`, shared);
+          window.localStorage.removeItem(`atenas-tm-ignore-stage-${groupId}`);
+          setModelUrl(shared);
+          setModelSource(shared);
+          setShowSetup(false);
+          setStatus("Modelo del grupo sincronizado. Puedes usar cámara o importar una imagen.");
+        }
+      } catch {
+        // Si no hay conexión, se mantiene la copia local.
+      }
+    }
+
+    loadSharedModel();
+    return () => {
+      alive = false;
+    };
+  }, [groupId]);
 
   useEffect(() => {
     return () => {
@@ -672,6 +749,7 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
       modelRef.current = null;
       window.localStorage.removeItem(`atenas-tm-ignore-stage-${groupId}`);
       window.localStorage.setItem(`atenas-tm-model-${groupId}`, parsed);
+      await saveSharedModelUrl(parsed);
       setModelUrl(parsed);
       await ensureModel(parsed);
       setShowSetup(false);
@@ -692,11 +770,12 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
     setStatus("Pega un nuevo enlace de Teachable Machine y pulsa Guardar y conectar.");
   }
 
-  function disconnectModel() {
+  async function disconnectModel() {
     stopCamera();
     modelRef.current = null;
     window.localStorage.removeItem(`atenas-tm-model-${groupId}`);
     window.localStorage.setItem(`atenas-tm-ignore-stage-${groupId}`, "1");
+    await saveSharedModelUrl("");
     setModelUrl("");
     setModelSource("");
     setPredictions([]);
@@ -1993,7 +2072,16 @@ function Experience({ groupId, projectName, prototypeUrl, theme }: Props & { the
   return <GenericDemo projectName={projectName} theme={theme} />;
 }
 
-export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
+export function AiPrototypeLab({
+  groupId,
+  projectName,
+  prototypeUrl,
+  showDemoButton = true,
+  showExposureButton = true,
+  exposureEnabled = true,
+  exposureDisabledMessage = "",
+  onExposureFinished,
+}: Props) {
   const theme = THEMES[groupId] ?? {
     fallbackName: `Grupo ${groupId}`,
     tagline: "Proyecto de Inteligencia Artificial",
@@ -2080,6 +2168,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
               Abre una interfaz de exposición preparada para demostrar entrada → IA → resultado de forma clara y visual.
             </p>
             <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+              {showDemoButton && (
               <button
                 type="button"
                 onClick={() => setOpen(true)}
@@ -2095,9 +2184,12 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
               >
                 <Sparkles size={20} /> Probar mi proyecto IA <ChevronRight size={19} />
               </button>
+              )}
+              {showExposureButton && (
               <button
                 type="button"
-                onClick={() => setExposureOpen(true)}
+                onClick={() => exposureEnabled && setExposureOpen(true)}
+                disabled={!exposureEnabled}
                 style={{
                   minHeight: 55,
                   borderRadius: 16,
@@ -2109,12 +2201,15 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
                   background: "white",
                   color: theme.accent,
                   fontWeight: 900,
-                  cursor: "pointer",
+                  cursor: exposureEnabled ? "pointer" : "not-allowed",
+                  opacity: exposureEnabled ? 1 : .55,
                   fontFamily: uiFont,
                 }}
+                title={!exposureEnabled ? exposureDisabledMessage : undefined}
               >
-                🎤 Modo exposición · 2–3 min
+                🎤 Modo exposición · máximo 4 min
               </button>
+              )}
               {adminScreen && groupId === 1 && (
                 <a
                   href="/ai-control"
@@ -2273,6 +2368,9 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
         projectName={projectName}
         accent={theme.accent}
         accent2={theme.accent2}
+        canStart={exposureEnabled}
+        disabledMessage={exposureDisabledMessage}
+        onFinished={onExposureFinished}
       />
 
     </>
