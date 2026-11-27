@@ -20,7 +20,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { getSupabase } from "@/lib/supabase-browser";
+import { getSupabase } from "@/lib/supabase-browser";\nimport { ExposureMode } from "@/components/ExposureMode";\nimport {\n  CanvasAlignedExtras,\n  DragonRobloxDemo,\n  FoodAidDemo,\n  InnovaCreativeDemo,\n  LexiScanDemo,\n} from "@/components/V8CanvasDemos";
 
 type Props = {
   groupId: number;
@@ -50,7 +50,7 @@ type Theme = {
   decorations: string[];
 };
 
-const VISION_GROUPS = new Set([4, 5, 8, 9, 11, 12]);
+const VISION_GROUPS = new Set([4, 5, 8, 9]);
 
 const THEMES: Record<number, Theme> = {
   1: {
@@ -170,7 +170,7 @@ const THEMES: Record<number, Theme> = {
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 20%,rgba(34,197,94,.36),transparent 25%), radial-gradient(circle at 90% 15%,rgba(245,158,11,.3),transparent 25%), linear-gradient(135deg,#312e81,#4c1d95 52%,#6d28d9)",
-    image: "/demo-themes/pixelquest.png",
+    image: "/demo-themes/innova.png",
     decorations: ["🪙", "⚔️", "🏰", "⭐"],
   },
   11: {
@@ -1951,13 +1951,39 @@ function GameButton({ children, onClick }: { children: ReactNode; onClick: () =>
 }
 
 function Experience({ groupId, projectName, prototypeUrl, theme }: Props & { theme: Theme }) {
-  if (VISION_GROUPS.has(groupId)) return <VisionDemo groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />;
-  if (groupId === 1) return <ScafeDemo theme={theme} />;
-  if (groupId === 2) return <MapForgeDemo theme={theme} />;
+  if (groupId === 2) return <InnovaCreativeDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 10) return <DragonRobloxDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 11) return <FoodAidDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 12) return <LexiScanDemo groupId={groupId} projectName={projectName} theme={theme} />;
+
+  if (VISION_GROUPS.has(groupId)) {
+    return (
+      <div style={{ display: "grid", gap: 18 }}>
+        <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+        <VisionDemo groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />
+      </div>
+    );
+  }
+
+  if (groupId === 1) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <ScafeDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
   if (groupId === 3) return <SafeWalkDemo theme={theme} />;
-  if (groupId === 6) return <StudyQuestDemo theme={theme} />;
-  if (groupId === 7) return <SeniorCareDemo theme={theme} />;
-  if (groupId === 10) return <MiniGameDemo theme={theme} />;
+  if (groupId === 6) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <StudyQuestDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
+  if (groupId === 7) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <SeniorCareDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
   return <GenericDemo projectName={projectName} theme={theme} />;
 }
 
@@ -2061,6 +2087,26 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
                 }}
               >
                 <Sparkles size={20} /> Probar mi proyecto IA <ChevronRight size={19} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setExposureOpen(true)}
+                style={{
+                  minHeight: 55,
+                  borderRadius: 16,
+                  padding: "0 20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: `1px solid ${theme.accent}35`,
+                  background: "white",
+                  color: theme.accent,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontFamily: uiFont,
+                }}
+              >
+                🎤 Modo exposición · 2–3 min
               </button>
               {adminScreen && groupId === 1 && (
                 <a
@@ -2213,6 +2259,15 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
           </main>
         </div>
       )}
+      <ExposureMode
+        open={exposureOpen}
+        onClose={() => setExposureOpen(false)}
+        groupId={groupId}
+        projectName={projectName}
+        accent={theme.accent}
+        accent2={theme.accent2}
+      />
+
     </>
   );
 }
