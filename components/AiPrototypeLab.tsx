@@ -67,7 +67,7 @@ const VISION_GROUPS = new Set([4, 5, 8, 9]);
 
 const THEMES: Record<number, Theme> = {
   1: {
-    fallbackName: "SmartCafé IA",
+    fallbackName: "Scafe",
     tagline: "Asistente inteligente de cafetería",
     emoji: "☕",
     accent: "#6d28d9",
@@ -103,7 +103,7 @@ const THEMES: Record<number, Theme> = {
     decorations: ["📍", "🚶", "🚦", "🏙️"],
   },
   4: {
-    fallbackName: "SignaIA",
+    fallbackName: "ManosLab",
     tagline: "Reconocimiento de lenguaje de señas",
     emoji: "🤟",
     accent: "#7c3aed",
@@ -115,7 +115,7 @@ const THEMES: Record<number, Theme> = {
     decorations: ["🤟", "👋", "👍", "👏"],
   },
   5: {
-    fallbackName: "FindIt AI",
+    fallbackName: "C&S · Código Desaparecido",
     tagline: "Reconocimiento de objetos perdidos",
     emoji: "🔎",
     accent: "#6d28d9",
