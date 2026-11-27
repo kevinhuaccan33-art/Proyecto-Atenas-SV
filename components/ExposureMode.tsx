@@ -462,6 +462,48 @@ export function ExposureMode({
               top: 98,
             }}
           >
+            <div
+              style={{
+                borderRadius: 18,
+                padding: "16px 12px",
+                marginBottom: 12,
+                textAlign: "center",
+                background: timerTone.bg,
+                color: timerTone.fg,
+                border: "1px solid " + timerTone.border,
+              }}
+            >
+              <small
+                style={{
+                  display: "block",
+                  fontWeight: 950,
+                  letterSpacing: .8,
+                  marginBottom: 4,
+                }}
+              >
+                TIEMPO RESTANTE
+              </small>
+              <strong
+                style={{
+                  display: "block",
+                  fontSize: 38,
+                  lineHeight: 1,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {mm}:{ss}
+              </strong>
+              <small
+                style={{
+                  display: "block",
+                  marginTop: 6,
+                  fontWeight: 900,
+                }}
+              >
+                {timerTone.label}
+              </small>
+            </div>
+
             <strong style={{ display: "block", padding: "6px 8px 12px" }}>
               Estructura · máximo 4 min
             </strong>
