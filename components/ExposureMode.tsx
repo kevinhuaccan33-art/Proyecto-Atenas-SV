@@ -79,6 +79,14 @@ const CURATED_GUIDES: Record<number, CuratedGuide> = {
     limitation: "Las ideas de la IA deben ser revisadas y mejoradas por una persona.",
     objective: "Impulsar la creatividad y la originalidad al diseñar videojuegos.",
   },
+  3: {
+    problem: "Al desplazarse por la ciudad, una persona puede encontrarse con zonas que requieren mayor precaución.",
+    solution: "SafeWalk permite dibujar rutas en un mapa y clasificar sus tramos como bajo riesgo, precaución o mayor precaución.",
+    ai: "La IA analiza el contexto del tramo y explica por qué una zona puede requerir más o menos precaución.",
+    benefit: "Ayuda a visualizar rutas y tomar decisiones más informadas durante una simulación educativa.",
+    limitation: "La clasificación es orientativa y no garantiza que una calle sea segura en la vida real.",
+    objective: "Crear una herramienta educativa que combine mapa, ubicación y análisis de rutas con IA.",
+  },
   4: {
     problem: "Muchas personas no tienen oportunidades sencillas para aprender y practicar lengua de señas.",
     solution: "ManosLab combina aprendizaje, práctica y pruebas para reforzar las señas.",
