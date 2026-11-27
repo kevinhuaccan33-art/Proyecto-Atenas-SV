@@ -2096,6 +2096,7 @@ export function AiPrototypeLab({
 
   const [open, setOpen] = useState(false);
   const [exposureOpen, setExposureOpen] = useState(false);
+  const [exposureMinimized, setExposureMinimized] = useState(false);
   const [adminScreen, setAdminScreen] = useState(false);
   const displayName = projectName?.trim() || theme.fallbackName;
   const heroRight = [4, 8, 11, 12].includes(groupId);
@@ -2188,7 +2189,11 @@ export function AiPrototypeLab({
               {showExposureButton && (
               <button
                 type="button"
-                onClick={() => exposureEnabled && setExposureOpen(true)}
+                onClick={() => {
+                  if (!exposureEnabled) return;
+                  setExposureMinimized(false);
+                  setExposureOpen(true);
+                }}
                 disabled={!exposureEnabled}
                 style={{
                   minHeight: 55,
@@ -2289,7 +2294,13 @@ export function AiPrototypeLab({
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" onClick={browserFullscreen} style={{ border: "1px solid #dbe2ea", borderRadius: 13, background: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer", color: "#334155" }} aria-label="Pantalla completa"><Maximize2 size={18} /></button>
-              <button type="button" onClick={() => setOpen(false)} style={{ border: 0, borderRadius: 13, background: "#111827", color: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer" }} aria-label="Cerrar"><X size={20} /></button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  if (exposureOpen) setExposureMinimized(false);
+                }}
+                style={{ border: 0, borderRadius: 13, background: "#111827", color: "white", width: 44, height: 44, display: "grid", placeItems: "center", cursor: "pointer" }} aria-label="Cerrar"><X size={20} /></button>
             </div>
           </header>
 
@@ -2371,6 +2382,15 @@ export function AiPrototypeLab({
         canStart={exposureEnabled}
         disabledMessage={exposureDisabledMessage}
         onFinished={onExposureFinished}
+        minimized={exposureMinimized}
+        onOpenDemo={() => {
+          setOpen(true);
+          setExposureMinimized(true);
+        }}
+        onRestore={() => {
+          setOpen(false);
+          setExposureMinimized(false);
+        }}
       />
 
     </>
