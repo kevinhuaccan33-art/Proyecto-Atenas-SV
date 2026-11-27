@@ -21,11 +21,24 @@ import {
   X,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase-browser";
+import { ExposureMode } from "@/components/ExposureMode";
+import {
+  CanvasAlignedExtras,
+  DragonRobloxDemo,
+  FoodAidDemo,
+  InnovaCreativeDemo,
+  LexiScanDemo,
+} from "@/components/V8CanvasDemos";
 
 type Props = {
   groupId: number;
   projectName?: string | null;
   prototypeUrl?: string | null;
+  showDemoButton?: boolean;
+  showExposureButton?: boolean;
+  exposureEnabled?: boolean;
+  exposureDisabledMessage?: string;
+  onExposureFinished?: () => void | Promise<void>;
 };
 
 type Prediction = {
@@ -50,7 +63,7 @@ type Theme = {
   decorations: string[];
 };
 
-const VISION_GROUPS = new Set([4, 5, 8, 9, 11, 12]);
+const VISION_GROUPS = new Set([4, 5, 8, 9]);
 
 const THEMES: Record<number, Theme> = {
   1: {
@@ -67,7 +80,7 @@ const THEMES: Record<number, Theme> = {
   },
   2: {
     fallbackName: "Innova Game IA",
-    tagline: "Buscador inteligente de mapas",
+    tagline: "Asistente creativo para desarrollar videojuegos",
     emoji: "🎮",
     accent: "#6d28d9",
     accent2: "#2563eb",
@@ -114,8 +127,8 @@ const THEMES: Record<number, Theme> = {
     decorations: ["🎒", "📚", "🧴", "🔑"],
   },
   6: {
-    fallbackName: "StudyQuest IA",
-    tagline: "Organizador inteligente del tiempo",
+    fallbackName: "Krono IA",
+    tagline: "Planificación de estudio y refuerzo inteligente",
     emoji: "🗓️",
     accent: "#6d28d9",
     accent2: "#0891b2",
@@ -126,8 +139,8 @@ const THEMES: Record<number, Theme> = {
     decorations: ["⏰", "📚", "✅", "✏️"],
   },
   7: {
-    fallbackName: "SeniorCare",
-    tagline: "Apoyo inteligente para adultos mayores",
+    fallbackName: "Wise Hearts",
+    tagline: "Ada · recordatorios y acompañamiento para adultos mayores",
     emoji: "💜",
     accent: "#7c3aed",
     accent2: "#e11d48",
@@ -138,20 +151,20 @@ const THEMES: Record<number, Theme> = {
     decorations: ["❤️", "⏰", "💊", "📅"],
   },
   8: {
-    fallbackName: "PetID AI",
-    tagline: "Reconocimiento de mascotas",
-    emoji: "🐾",
+    fallbackName: "EcoDetect",
+    tagline: "Identificación de contaminación y cuidado ambiental",
+    emoji: "🌎",
     accent: "#6d28d9",
     accent2: "#16a34a",
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.32),transparent 25%), radial-gradient(circle at 88% 15%,rgba(192,132,252,.38),transparent 25%), linear-gradient(135deg,#4c1d95,#6d28d9 50%,#7c3aed)",
-    image: "/demo-themes/petvision.png",
-    decorations: ["🐶", "🐱", "🐰", "🐾"],
+    image: "/demo-themes/ecodetect.png",
+    decorations: ["🌎", "🌱", "💨", "💧"],
   },
   9: {
-    fallbackName: "EcoDetect",
-    tagline: "Detección ambiental inteligente",
+    fallbackName: "EcoAlerta",
+    tagline: "Clasificación inteligente de residuos",
     emoji: "♻️",
     accent: "#15803d",
     accent2: "#6d28d9",
@@ -162,40 +175,40 @@ const THEMES: Record<number, Theme> = {
     decorations: ["♻️", "🌱", "🗑️", "🌎"],
   },
   10: {
-    fallbackName: "Videojuego 2D con IA",
-    tagline: "Aventura 2D con decisiones inteligentes",
+    fallbackName: "Creación de Videojuego",
+    tagline: "Roblox · dragón guardián, sigilo y defensa del huevo",
     emoji: "🕹️",
     accent: "#6d28d9",
     accent2: "#f59e0b",
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 20%,rgba(34,197,94,.36),transparent 25%), radial-gradient(circle at 90% 15%,rgba(245,158,11,.3),transparent 25%), linear-gradient(135deg,#312e81,#4c1d95 52%,#6d28d9)",
-    image: "/demo-themes/pixelquest.png",
+    image: "/demo-themes/innova.png",
     decorations: ["🪙", "⚔️", "🏰", "⭐"],
   },
   11: {
-    fallbackName: "FruitVision AI",
-    tagline: "Reconocimiento de frutas",
-    emoji: "🍎",
+    fallbackName: "Más Allá del Camino",
+    tagline: "Campañas y organización para ayuda alimentaria",
+    emoji: "🤝",
     accent: "#16a34a",
     accent2: "#dc2626",
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(248,113,113,.42),transparent 26%), radial-gradient(circle at 90% 16%,rgba(250,204,21,.38),transparent 25%), linear-gradient(135deg,#166534,#16a34a 48%,#65a30d)",
-    image: "/demo-themes/frutiai.png",
-    decorations: ["🍎", "🍌", "🍊", "🍓"],
+    image: "/demo-themes/generic.png",
+    decorations: ["🤝", "📦", "📍", "❤️"],
   },
   12: {
-    fallbackName: "NutriAI",
-    tagline: "Clasificación visual de alimentos",
-    emoji: "🥗",
+    fallbackName: "LexiScan AI",
+    tagline: "Análisis experimental de patrones de texto",
+    emoji: "📝",
     accent: "#16a34a",
     accent2: "#f59e0b",
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.38),transparent 25%), radial-gradient(circle at 88% 16%,rgba(251,191,36,.32),transparent 25%), linear-gradient(135deg,#14532d,#15803d 50%,#65a30d)",
-    image: "/demo-themes/nutriai.png",
-    decorations: ["🥗", "🥕", "🍎", "🥦"],
+    image: "/demo-themes/generic.png",
+    decorations: ["📝", "🔎", "🧠", "📊"],
   },
 };
 
@@ -562,13 +575,42 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   const runningRef = useRef(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  async function saveSharedModelUrl(url: string) {
+    try {
+      const supabase = await getSupabase();
+      const { data: current } = await supabase
+        .from("ai_project_data")
+        .select("data")
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      const previous =
+        current?.data && typeof current.data === "object"
+          ? current.data
+          : {};
+
+      await supabase
+        .from("ai_project_data")
+        .upsert(
+          {
+            group_id: groupId,
+            data: {
+              ...previous,
+              teachable_model_url: url,
+            },
+          },
+          { onConflict: "group_id" }
+        );
+    } catch (error) {
+      console.warn("No se pudo sincronizar el modelo del grupo:", error);
+    }
+  }
+
   const groupHints: Record<number, string[]> = {
-    4: ["Hola", "Gracias", "Por favor", "Ninguna"],
-    5: ["Botella", "Mochila", "Cuaderno", "Otro"],
-    8: ["Perro", "Gato", "Conejo"],
-    9: ["Plástico", "Papel", "Lata", "Orgánico"],
-    11: ["Manzana", "Plátano", "Naranja"],
-    12: ["Fruta", "Verdura", "Snack", "Otro"],
+    4: ["A", "B", "C", "Hola"],
+    5: ["Mochila", "Celular", "Llaves", "Cuaderno", "Botella"],
+    8: ["Contaminación del suelo", "Contaminación del aire", "Contaminación del agua", "Sin contaminación"],
+    9: ["Plástico", "Papel/Cartón", "Metal", "Vidrio", "No reciclable"],
   };
 
   useEffect(() => {
@@ -589,6 +631,47 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
       setStatus("Configura el modelo pegando el enlace que entrega Teachable Machine.");
     }
   }, [groupId, prototypeUrl]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadSharedModel() {
+      try {
+        const supabase = await getSupabase();
+        const { data } = await supabase
+          .from("ai_project_data")
+          .select("data")
+          .eq("group_id", groupId)
+          .maybeSingle();
+
+        if (!alive) return;
+
+        const shared = extractTeachableUrl(
+          String(
+            data?.data && typeof data.data === "object"
+              ? data.data.teachable_model_url ?? ""
+              : ""
+          )
+        );
+
+        if (shared) {
+          window.localStorage.setItem(`atenas-tm-model-${groupId}`, shared);
+          window.localStorage.removeItem(`atenas-tm-ignore-stage-${groupId}`);
+          setModelUrl(shared);
+          setModelSource(shared);
+          setShowSetup(false);
+          setStatus("Modelo del grupo sincronizado. Puedes usar cámara o importar una imagen.");
+        }
+      } catch {
+        // Si no hay conexión, se mantiene la copia local.
+      }
+    }
+
+    loadSharedModel();
+    return () => {
+      alive = false;
+    };
+  }, [groupId]);
 
   useEffect(() => {
     return () => {
@@ -666,6 +749,7 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
       modelRef.current = null;
       window.localStorage.removeItem(`atenas-tm-ignore-stage-${groupId}`);
       window.localStorage.setItem(`atenas-tm-model-${groupId}`, parsed);
+      await saveSharedModelUrl(parsed);
       setModelUrl(parsed);
       await ensureModel(parsed);
       setShowSetup(false);
@@ -686,11 +770,12 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
     setStatus("Pega un nuevo enlace de Teachable Machine y pulsa Guardar y conectar.");
   }
 
-  function disconnectModel() {
+  async function disconnectModel() {
     stopCamera();
     modelRef.current = null;
     window.localStorage.removeItem(`atenas-tm-model-${groupId}`);
     window.localStorage.setItem(`atenas-tm-ignore-stage-${groupId}`, "1");
+    await saveSharedModelUrl("");
     setModelUrl("");
     setModelSource("");
     setPredictions([]);
@@ -1951,17 +2036,52 @@ function GameButton({ children, onClick }: { children: ReactNode; onClick: () =>
 }
 
 function Experience({ groupId, projectName, prototypeUrl, theme }: Props & { theme: Theme }) {
-  if (VISION_GROUPS.has(groupId)) return <VisionDemo groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />;
-  if (groupId === 1) return <ScafeDemo theme={theme} />;
-  if (groupId === 2) return <MapForgeDemo theme={theme} />;
+  if (groupId === 2) return <InnovaCreativeDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 10) return <DragonRobloxDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 11) return <FoodAidDemo groupId={groupId} projectName={projectName} theme={theme} />;
+  if (groupId === 12) return <LexiScanDemo groupId={groupId} projectName={projectName} theme={theme} />;
+
+  if (VISION_GROUPS.has(groupId)) {
+    return (
+      <div style={{ display: "grid", gap: 18 }}>
+        <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+        <VisionDemo groupId={groupId} projectName={projectName} prototypeUrl={prototypeUrl} theme={theme} />
+      </div>
+    );
+  }
+
+  if (groupId === 1) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <ScafeDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
   if (groupId === 3) return <SafeWalkDemo theme={theme} />;
-  if (groupId === 6) return <StudyQuestDemo theme={theme} />;
-  if (groupId === 7) return <SeniorCareDemo theme={theme} />;
-  if (groupId === 10) return <MiniGameDemo theme={theme} />;
+  if (groupId === 6) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <StudyQuestDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
+  if (groupId === 7) return (
+    <div style={{ display: "grid", gap: 18 }}>
+      <SeniorCareDemo theme={theme} />
+      <CanvasAlignedExtras groupId={groupId} projectName={projectName} theme={theme} />
+    </div>
+  );
   return <GenericDemo projectName={projectName} theme={theme} />;
 }
 
-export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
+export function AiPrototypeLab({
+  groupId,
+  projectName,
+  prototypeUrl,
+  showDemoButton = true,
+  showExposureButton = true,
+  exposureEnabled = true,
+  exposureDisabledMessage = "",
+  onExposureFinished,
+}: Props) {
   const theme = THEMES[groupId] ?? {
     fallbackName: `Grupo ${groupId}`,
     tagline: "Proyecto de Inteligencia Artificial",
@@ -1975,6 +2095,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
   };
 
   const [open, setOpen] = useState(false);
+  const [exposureOpen, setExposureOpen] = useState(false);
   const [adminScreen, setAdminScreen] = useState(false);
   const displayName = projectName?.trim() || theme.fallbackName;
   const heroRight = [4, 8, 11, 12].includes(groupId);
@@ -2047,6 +2168,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
               Abre una interfaz de exposición preparada para demostrar entrada → IA → resultado de forma clara y visual.
             </p>
             <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+              {showDemoButton && (
               <button
                 type="button"
                 onClick={() => setOpen(true)}
@@ -2062,6 +2184,32 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
               >
                 <Sparkles size={20} /> Probar mi proyecto IA <ChevronRight size={19} />
               </button>
+              )}
+              {showExposureButton && (
+              <button
+                type="button"
+                onClick={() => exposureEnabled && setExposureOpen(true)}
+                disabled={!exposureEnabled}
+                style={{
+                  minHeight: 55,
+                  borderRadius: 16,
+                  padding: "0 20px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: `1px solid ${theme.accent}35`,
+                  background: "white",
+                  color: theme.accent,
+                  fontWeight: 900,
+                  cursor: exposureEnabled ? "pointer" : "not-allowed",
+                  opacity: exposureEnabled ? 1 : .55,
+                  fontFamily: uiFont,
+                }}
+                title={!exposureEnabled ? exposureDisabledMessage : undefined}
+              >
+                🎤 Modo exposición · máximo 4 min
+              </button>
+              )}
               {adminScreen && groupId === 1 && (
                 <a
                   href="/ai-control"
@@ -2213,6 +2361,18 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
           </main>
         </div>
       )}
+      <ExposureMode
+        open={exposureOpen}
+        onClose={() => setExposureOpen(false)}
+        groupId={groupId}
+        projectName={projectName}
+        accent={theme.accent}
+        accent2={theme.accent2}
+        canStart={exposureEnabled}
+        disabledMessage={exposureDisabledMessage}
+        onFinished={onExposureFinished}
+      />
+
     </>
   );
 }

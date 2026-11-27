@@ -409,6 +409,16 @@ export default function StudentPage() {
     [works]
   );
 
+  const prototypeCombinedScore =
+    numeric(stage3?.score) + numeric(stage4?.score);
+  const prototypeCombinedApproved =
+    stage3?.status === "approved" &&
+    stage4?.status === "approved";
+  const prototypeDisplayStatus: StageStatus =
+    prototypeCombinedApproved
+      ? "approved"
+      : stage3?.status ?? "locked";
+
   const grade = useMemo(
     () =>
       works
@@ -444,23 +454,23 @@ export default function StudentPage() {
         }
       : lastApprovedStage === 3
       ? {
-          emoji: "📚",
-          title: "¡Datos validados!",
-          text: "El dataset o contenido fue aprobado. Ahora toca demostrar el prototipo funcionando.",
+          emoji: "🤖",
+          title: "¡Prototipo en evaluación!",
+          text: "La primera parte de la evaluación del prototipo ya fue registrada.",
           milestone: "60%",
         }
       : lastApprovedStage === 4
       ? {
           emoji: "🤖",
-          title: "¡Prototipo aprobado!",
-          text: "La solución ya funciona. Solo falta preparar la versión final, pruebas y presentación.",
+          title: "¡Prototipo IA aprobado!",
+          text: "La demostración funcional ya está aprobada. La Exposición final quedó habilitada.",
           milestone: "80%",
         }
       : lastApprovedStage === 5
       ? {
           emoji: "🌟",
-          title: "¡Proyecto final aprobado!",
-          text: "Las cinco etapas académicas están aprobadas. Falta únicamente la validación final del profesor para emitir el diploma.",
+          title: "¡Exposición final aprobada!",
+          text: "Identidad, Canvas, prototipo y exposición ya están aprobados. Falta únicamente la validación final del profesor para emitir el diploma.",
           milestone: "100%",
         }
       : null;
@@ -1377,6 +1387,53 @@ export default function StudentPage() {
     );
   }
 
+
+  async function submitPrototypeForReview() {
+    if (!stage3 || !editable(stage3)) {
+      setMessage("El prototipo todavía no está habilitado para evaluación.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "¿Marcar el prototipo como listo para evaluación? Podrás seguir probándolo, pero la entrega quedará esperando la nota del profesor."
+      )
+    ) {
+      return;
+    }
+
+    await updateStage(
+      3,
+      {
+        ...(stage3.content ?? {}),
+        prototype_ready: true,
+        prototype_submitted_at: new Date().toISOString(),
+      },
+      stage3Comment,
+      true
+    );
+  }
+
+  async function finishOfficialExposure() {
+    if (!stage5 || !editable(stage5)) return;
+
+    await updateStage(
+      5,
+      {
+        ...(stage5.content ?? {}),
+        exposure_completed: true,
+        exposure_duration_seconds: 240,
+        exposure_completed_at: new Date().toISOString(),
+      },
+      "",
+      true
+    );
+
+    setMessage(
+      "✅ Exposición finalizada. Ya fue enviada al profesor para colocar la nota final y la observación."
+    );
+  }
+
   async function logout() {
     const supabase = await getSupabase();
     await supabase.auth.signOut();
@@ -1584,12 +1641,6 @@ export default function StudentPage() {
           </article>
         </section>
 
-        <AiPrototypeLab
-          groupId={group.id}
-          projectName={group.project_name || projectName}
-          prototypeUrl={prototypeUrl}
-        />
-
         {message && (
           <button
             onClick={() => setMessage("")}
@@ -1679,7 +1730,7 @@ export default function StudentPage() {
           </small>
           <h2>Camino recorrido</h2>
           <p style={{ color: "#6b7280" }}>
-            Cada etapa vale hasta 4 puntos.
+            Identidad 4 pts · Canvas 4 pts · Prototipo IA 8 pts · Exposición final 4 pts = 20 puntos.
           </p>
 
           <div
@@ -1690,12 +1741,20 @@ export default function StudentPage() {
               gap: 12,
             }}
           >
-            {stages.map((stage) => {
+            {stages.filter((stage) => stage.id !== 4).map((stage) => {
               const work =
                 works.find((item) => item.stage_id === stage.id) ??
                 null;
-              const status: StageStatus = work?.status ?? "locked";
+              const status: StageStatus =
+                stage.id === 3
+                  ? prototypeDisplayStatus
+                  : work?.status ?? "locked";
               const info = STATUS_DATA[status];
+              const stageScore =
+                stage.id === 3
+                  ? prototypeCombinedScore
+                  : numeric(work?.score);
+              const stageMax = stage.id === 3 ? 8 : 4;
 
               return (
                 <article
@@ -1730,7 +1789,7 @@ export default function StudentPage() {
                     {info.label}
                   </span>
                   <p style={{ fontSize: 12, color: "#6b7280" }}>
-                    {numeric(work?.score)}/4 puntos
+                    {stageScore}/{stageMax} puntos
                   </p>
 
                   {work && status !== "locked" && (
@@ -2200,21 +2259,22 @@ export default function StudentPage() {
                 justifyContent: "space-between",
                 gap: 15,
                 flexWrap: "wrap",
-                marginBottom: 24,
+                marginBottom: 18,
               }}
             >
               <div>
-                <small style={{ color: "#159b7d", fontWeight: 800 }}>
-                  ETAPA 3 · 4 PUNTOS
+                <small style={{ color: "#6c56d9", fontWeight: 800 }}>
+                  ETAPA 3 · PROTOTIPO IA · 8 PUNTOS
                 </small>
-                <h2>Datos / dataset / contenido</h2>
-                <p style={{ color: "#6b7280" }}>
-                  Describe los datos o contenidos usados por el proyecto.
-                  Los datasets pesados se mantienen en Drive; aquí se
-                  registra su enlace.
+                <h2>Probar mi proyecto IA</h2>
+                <p style={{ color: "#6b7280", maxWidth: 760 }}>
+                  Esta etapa reúne las antiguas Etapas 3 y 4. Prueba el
+                  prototipo, verifica que su función principal responda y,
+                  cuando esté listo, envíalo al profesor para una sola nota
+                  sobre 8 puntos.
                 </p>
               </div>
-              <StatusPill status={stage3.status} />
+              <StatusPill status={prototypeDisplayStatus} />
             </div>
 
             {stage3.status === "locked" ? (
@@ -2223,461 +2283,84 @@ export default function StudentPage() {
               <>
                 <TeacherComment work={stage3} />
 
-                <form
-                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    saveStage3(false);
+                <AiPrototypeLab
+                  groupId={group.id}
+                  projectName={group.project_name || projectName}
+                  prototypeUrl={prototypeUrl}
+                  showDemoButton={true}
+                  showExposureButton={false}
+                />
+
+                <div
+                  style={{
+                    marginTop: 16,
+                    borderRadius: 16,
+                    padding: 16,
+                    background: prototypeCombinedApproved
+                      ? "#ecfdf5"
+                      : stage3.status === "submitted"
+                      ? "#fffbeb"
+                      : "#f8fafc",
+                    border: prototypeCombinedApproved
+                      ? "1px solid #bbf7d0"
+                      : stage3.status === "submitted"
+                      ? "1px solid #fde68a"
+                      : "1px solid #e2e8f0",
                   }}
-                  style={{ display: "grid", gap: 20 }}
                 >
-                  <label style={{ display: "grid", gap: 7 }}>
-                    <strong>1. Tipo de recurso</strong>
-                    <select
-                      value={resourceType}
-                      disabled={!editable(stage3)}
-                      onChange={(event) =>
-                        setResourceType(event.target.value)
-                      }
-                      style={{
-                        minHeight: 46,
-                        border: "1px solid #d1d5db",
-                        borderRadius: 12,
-                        padding: "0 14px",
-                        fontSize: 15,
-                        background: editable(stage3)
-                          ? "white"
-                          : "#f3f4f6",
-                      }}
-                    >
-                      <option value="dataset">Dataset</option>
-                      <option value="contenido">Contenido</option>
-                      <option value="mixto">
-                        Datos + contenido
-                      </option>
-                    </select>
-                  </label>
-
-                  <TextAreaField
-                    label="2. Descripción de los datos o contenidos"
-                    value={dataDescription}
-                    onChange={setDataDescription}
-                    disabled={!editable(stage3)}
-                    placeholder="¿Qué contiene el dataset o material y para qué se utilizará?"
-                  />
-
-                  <TextAreaField
-                    label="3. Origen o fuente"
-                    value={sourceOrigin}
-                    onChange={setSourceOrigin}
-                    disabled={!editable(stage3)}
-                    placeholder="¿Los datos fueron creados por el grupo, descargados, recolectados, fotografiados, generados, etc.?"
-                  />
-
-                  <TextAreaField
-                    label="4. Organización, clases o categorías"
-                    value={organizationClasses}
-                    onChange={setOrganizationClasses}
-                    disabled={!editable(stage3)}
-                    placeholder="Ej. gato/perro, reciclable/no reciclable, carpetas, etiquetas..."
-                  />
-
-                  <TextField
-                    label="5. Cantidad o tamaño aproximado"
-                    value={dataQuantity}
-                    onChange={setDataQuantity}
-                    disabled={!editable(stage3)}
-                    placeholder="Ej. 850 imágenes, 2.000 registros, 30 textos..."
-                  />
-
-                  <TextAreaField
-                    label="6. Método de obtención"
-                    value={collectionMethod}
-                    onChange={setCollectionMethod}
-                    disabled={!editable(stage3)}
-                    placeholder="¿Cómo obtuvieron o construyeron estos datos/contenidos?"
-                  />
-
-                  <TextAreaField
-                    label="7. Preparación, limpieza o selección"
-                    value={dataPreparation}
-                    onChange={setDataPreparation}
-                    disabled={!editable(stage3)}
-                    placeholder="¿Qué eliminaron, corrigieron, organizaron, etiquetaron o transformaron?"
-                  />
-
-                  <TextAreaField
-                    label="8. Limitaciones, sesgos y cuidados"
-                    value={dataLimitations}
-                    onChange={setDataLimitations}
-                    disabled={!editable(stage3)}
-                    placeholder="¿Hay privacidad, sesgo, clases desbalanceadas o ejemplos insuficientes?"
-                  />
-
-                  <TextField
-                    label="9. Enlace al dataset, carpeta o contenido"
-                    value={resourceUrl}
-                    onChange={setResourceUrl}
-                    disabled={!editable(stage3)}
-                    type="url"
-                    placeholder="https://drive.google.com/... o enlace equivalente"
-                  />
-
-                  {resourceUrl && (
-                    <a
-                      href={resourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        color: "#4338ca",
-                        fontWeight: 700,
-                        width: "fit-content",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <LinkIcon size={16} />
-                      Abrir recurso
-                    </a>
-                  )}
-
-                  <TextAreaField
-                    label="Comentario para el profesor"
-                    value={stage3Comment}
-                    onChange={setStage3Comment}
-                    disabled={!editable(stage3)}
-                    placeholder="Comentario opcional sobre los datos o contenidos."
-                    rows={3}
-                  />
-
-                  {editable(stage3) ? (
+                  {prototypeCombinedApproved ? (
+                    <>
+                      <strong style={{ color: "#047857" }}>
+                        ✅ Prototipo aprobado · {prototypeCombinedScore}/8
+                      </strong>
+                      <p style={{ marginBottom: 0, color: "#475569" }}>
+                        La Exposición final ya puede realizarse.
+                      </p>
+                    </>
+                  ) : stage3.status === "submitted" ? (
+                    <>
+                      <strong style={{ color: "#92400e" }}>
+                        🟡 Prototipo esperando evaluación
+                      </strong>
+                      <p style={{ marginBottom: 0, color: "#6b7280" }}>
+                        El profesor probará la IA y colocará una única nota
+                        sobre 8 puntos.
+                      </p>
+                    </>
+                  ) : (
                     <div
                       style={{
                         display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 10,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        disabled={savingStage === 3}
-                      >
-                        <Database size={17} />
-                        Guardar borrador
-                      </Button>
-
-                      <Button
-                        type="button"
-                        disabled={savingStage === 3}
-                        onClick={() => saveStage3(true)}
-                      >
-                        <Send size={17} />
-                        Enviar Etapa 3 al profesor
-                      </Button>
-                    </div>
-                  ) : (
-                    <FrozenNotice
-                      work={stage3}
-                      approvedMessage="Etapa 3 aprobada"
-                    />
-                  )}
-                </form>
-              </>
-            )}
-          </section>
-        )}
-
-        {stage4 && (
-          <section
-            id="stage-4"
-            style={{
-              background: "white",
-              borderRadius: 24,
-              padding: 30,
-              marginBottom: 24,
-              opacity: stage4.status === "locked" ? 0.72 : 1,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 15,
-                flexWrap: "wrap",
-                marginBottom: 24,
-              }}
-            >
-              <div>
-                <small style={{ color: "#f39a32", fontWeight: 800 }}>
-                  ETAPA 4 · 4 PUNTOS
-                </small>
-                <h2>Prototipo funcional</h2>
-                <p style={{ color: "#6b7280" }}>
-                  Demuestra qué ya funciona, cómo interviene la IA y
-                  cómo puede probarse el prototipo.
-                </p>
-              </div>
-              <StatusPill status={stage4.status} />
-            </div>
-
-            {stage4.status === "locked" ? (
-              <LockedNotice previous={3} />
-            ) : (
-              <>
-                <TeacherComment work={stage4} />
-
-                <form
-                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    saveStage4(false);
-                  }}
-                  style={{ display: "grid", gap: 20 }}
-                >
-                  <label style={{ display: "grid", gap: 7 }}>
-                    <strong>1. Tipo de prototipo</strong>
-                    <select
-                      value={prototypeType}
-                      disabled={!editable(stage4)}
-                      onChange={(event) =>
-                        setPrototypeType(event.target.value)
-                      }
-                      style={{
-                        minHeight: 46,
-                        border: "1px solid #d1d5db",
-                        borderRadius: 12,
-                        padding: "0 14px",
-                        fontSize: 15,
-                        background: editable(stage4)
-                          ? "white"
-                          : "#f3f4f6",
-                      }}
-                    >
-                      <option value="web_app">Web / aplicación</option>
-                      <option value="mobile">Aplicación móvil</option>
-                      <option value="game">Videojuego</option>
-                      <option value="physical">
-                        Prototipo físico / electrónico
-                      </option>
-                      <option value="model">
-                        Modelo de IA / demostración
-                      </option>
-                      <option value="other">Otro</option>
-                    </select>
-                  </label>
-
-                  <TextAreaField
-                    label="2. Estado actual del prototipo"
-                    value={prototypeStatus}
-                    onChange={setPrototypeStatus}
-                    disabled={!editable(stage4)}
-                    placeholder="¿Qué parte del proyecto ya funciona actualmente?"
-                  />
-
-                  <TextAreaField
-                    label="3. Funciones implementadas"
-                    value={implementedFeatures}
-                    onChange={setImplementedFeatures}
-                    disabled={!editable(stage4)}
-                    placeholder="Enumera las funciones que ya están operativas."
-                  />
-
-                  <TextAreaField
-                    label="4. ¿Cómo está funcionando la IA?"
-                    value={prototypeAiUse}
-                    onChange={setPrototypeAiUse}
-                    disabled={!editable(stage4)}
-                    placeholder="Explica qué recibe la IA, qué procesa y qué resultado entrega."
-                  />
-
-                  <TextAreaField
-                    label="5. Pasos para probar el prototipo"
-                    value={testingSteps}
-                    onChange={setTestingSteps}
-                    disabled={!editable(stage4)}
-                    placeholder="Indica paso a paso qué debe hacer el profesor para probarlo."
-                  />
-
-                  <TextAreaField
-                    label="6. ¿Qué falta por completar?"
-                    value={pendingWork}
-                    onChange={setPendingWork}
-                    disabled={!editable(stage4)}
-                    placeholder="Funciones pendientes, errores conocidos o mejoras antes de la versión final."
-                  />
-
-                  <TextField
-                    label="7. Enlace al prototipo o demostración"
-                    value={prototypeUrl}
-                    onChange={setPrototypeUrl}
-                    disabled={!editable(stage4)}
-                    type="url"
-                    placeholder="https://... (opcional si subes evidencia)"
-                  />
-
-                  {prototypeUrl && (
-                    <a
-                      href={prototypeUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        color: "#4338ca",
-                        fontWeight: 700,
-                        width: "fit-content",
-                        display: "inline-flex",
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <LinkIcon size={16} />
-                      Abrir prototipo
-                    </a>
-                  )}
-
-                  <div>
-                    <strong
-                      style={{
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      8. Evidencia del prototipo
-                    </strong>
-
-                    <div
-                      style={{
-                        border: "1px dashed #c7c9d4",
-                        borderRadius: 17,
-                        padding: 18,
-                      }}
-                    >
-                      {prototypeEvidencePath && (
-                        <div
-                          style={{
-                            background: "#ecfdf5",
-                            color: "#047857",
-                            padding: 12,
-                            borderRadius: 12,
-                            marginBottom: 12,
-                          }}
-                        >
-                          ✅ Evidencia cargada
-                          {prototypeEvidenceUrl && (
-                            <>
-                              {" · "}
-                              <a
-                                href={prototypeEvidenceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                  color: "#4338ca",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Ver evidencia
-                              </a>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      <label
-                        style={{
-                          cursor: editable(stage4)
-                            ? "pointer"
-                            : "not-allowed",
-                        }}
-                      >
-                        <input
-                          hidden
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,application/pdf"
-                          disabled={
-                            !editable(stage4) || uploadingStage === 4
-                          }
-                          onChange={uploadPrototypeEvidence}
-                        />
-
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            border: "1px solid #d1d5db",
-                            borderRadius: 10,
-                            padding: "10px 14px",
-                          }}
-                        >
-                          <Upload size={17} />
-                          {uploadingStage === 4
-                            ? "Subiendo..."
-                            : prototypeEvidencePath
-                            ? "Cambiar evidencia"
-                            : "Subir evidencia"}
-                        </span>
-                      </label>
-
-                      <small
-                        style={{
-                          display: "block",
-                          color: "#6b7280",
-                          marginTop: 8,
-                        }}
-                      >
-                        Captura, imagen o PDF · máximo 10 MB.
-                        Para enviar necesitas un enlace o una evidencia.
-                      </small>
-                    </div>
-                  </div>
-
-                  <TextAreaField
-                    label="Comentario para el profesor"
-                    value={stage4Comment}
-                    onChange={setStage4Comment}
-                    disabled={!editable(stage4)}
-                    placeholder="Comentario opcional sobre el prototipo."
-                    rows={3}
-                  />
-
-                  {editable(stage4) ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 10,
+                        gap: 12,
                         flexWrap: "wrap",
                       }}
                     >
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        disabled={
-                          savingStage === 4 || uploadingStage === 4
-                        }
-                      >
-                        <FileText size={17} />
-                        Guardar borrador
-                      </Button>
-
+                      <div>
+                        <strong>¿La función principal ya está lista?</strong>
+                        <small
+                          style={{
+                            display: "block",
+                            marginTop: 4,
+                            color: "#6b7280",
+                          }}
+                        >
+                          Pruébala antes de enviarla. No necesitas subir un
+                          dataset ni completar otro formulario.
+                        </small>
+                      </div>
                       <Button
                         type="button"
-                        disabled={
-                          savingStage === 4 || uploadingStage === 4
-                        }
-                        onClick={() => saveStage4(true)}
+                        disabled={savingStage === 3}
+                        onClick={submitPrototypeForReview}
                       >
                         <Send size={17} />
-                        Enviar Etapa 4 al profesor
+                        Enviar prototipo a evaluación
                       </Button>
                     </div>
-                  ) : (
-                    <FrozenNotice
-                      work={stage4}
-                      approvedMessage="Etapa 4 aprobada"
-                    />
                   )}
-                </form>
+                </div>
               </>
             )}
           </section>
@@ -2700,265 +2383,112 @@ export default function StudentPage() {
                 justifyContent: "space-between",
                 gap: 15,
                 flexWrap: "wrap",
-                marginBottom: 24,
+                marginBottom: 18,
               }}
             >
               <div>
                 <small style={{ color: "#e05c77", fontWeight: 800 }}>
-                  ETAPA 5 · 4 PUNTOS
+                  ETAPA 5 · EXPOSICIÓN FINAL · 4 PUNTOS
                 </small>
-                <h2>Proyecto final, pruebas y presentación</h2>
-                <p style={{ color: "#6b7280" }}>
-                  Entrega la versión final, documenta las pruebas y
-                  presenta las conclusiones del proyecto.
+                <h2>Modo Exposición</h2>
+                <p style={{ color: "#6b7280", maxWidth: 760 }}>
+                  Plantilla guiada con problema, solución, uso de IA,
+                  demostración, beneficio, limitación y cierre. El tiempo
+                  máximo oficial es 4:00 minutos.
                 </p>
               </div>
               <StatusPill status={stage5.status} />
             </div>
 
             {stage5.status === "locked" ? (
-              <LockedNotice previous={4} />
+              <div
+                style={{
+                  padding: 18,
+                  borderRadius: 15,
+                  background: "#f3f4f6",
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                }}
+              >
+                <Lock />
+                <div>
+                  <strong>Exposición bloqueada</strong>
+                  <small
+                    style={{
+                      display: "block",
+                      marginTop: 4,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Primero debe aprobarse el Prototipo IA.
+                  </small>
+                </div>
+              </div>
             ) : (
               <>
                 <TeacherComment work={stage5} />
 
-                <form
-                  onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    saveStage5(false);
+                <AiPrototypeLab
+                  groupId={group.id}
+                  projectName={group.project_name || projectName}
+                  prototypeUrl={prototypeUrl}
+                  showDemoButton={false}
+                  showExposureButton={true}
+                  exposureEnabled={editable(stage5)}
+                  exposureDisabledMessage={
+                    stage5.status === "submitted"
+                      ? "La exposición ya terminó y está esperando la nota del profesor."
+                      : stage5.status === "approved"
+                      ? "La exposición final ya fue evaluada."
+                      : "La exposición no está habilitada en este momento."
+                  }
+                  onExposureFinished={finishOfficialExposure}
+                />
+
+                <div
+                  style={{
+                    marginTop: 14,
+                    borderRadius: 16,
+                    padding: 16,
+                    background:
+                      stage5.status === "approved"
+                        ? "#ecfdf5"
+                        : stage5.status === "submitted"
+                        ? "#fffbeb"
+                        : "#f8fafc",
+                    border:
+                      stage5.status === "approved"
+                        ? "1px solid #bbf7d0"
+                        : stage5.status === "submitted"
+                        ? "1px solid #fde68a"
+                        : "1px solid #e2e8f0",
                   }}
-                  style={{ display: "grid", gap: 20 }}
                 >
-                  <TextAreaField
-                    label="1. Resumen final del proyecto"
-                    value={finalSummary}
-                    onChange={setFinalSummary}
-                    disabled={!editable(stage5)}
-                    placeholder="Explica brevemente qué construyeron y cuál es el resultado final."
-                  />
-
-                  <TextField
-                    label="2. Enlace final o demostración"
-                    value={finalDemoUrl}
-                    onChange={setFinalDemoUrl}
-                    disabled={!editable(stage5)}
-                    type="url"
-                    placeholder="Web, aplicación, GitHub, Drive, video de demostración, etc."
-                  />
-
-                  {finalDemoUrl && (
-                    <a
-                      href={finalDemoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        color: "#4338ca",
-                        fontWeight: 700,
-                        width: "fit-content",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <LinkIcon size={16} />
-                      Abrir versión final
-                    </a>
-                  )}
-
-                  <TextAreaField
-                    label="3. Pruebas realizadas"
-                    value={finalTests}
-                    onChange={setFinalTests}
-                    disabled={!editable(stage5)}
-                    placeholder="¿Qué pruebas hicieron? Describe casos, usuarios o situaciones evaluadas."
-                  />
-
-                  <TextAreaField
-                    label="4. Resultados de las pruebas"
-                    value={finalResults}
-                    onChange={setFinalResults}
-                    disabled={!editable(stage5)}
-                    placeholder="¿Qué funcionó, qué falló y qué corrigieron?"
-                  />
-
-                  <TextAreaField
-                    label="5. Conclusiones"
-                    value={finalConclusions}
-                    onChange={setFinalConclusions}
-                    disabled={!editable(stage5)}
-                    placeholder="¿Qué aprendieron, qué logró el proyecto y cuáles son sus límites finales?"
-                  />
-
-                  <TextField
-                    label="6. Enlace a la presentación final"
-                    value={presentationUrl}
-                    onChange={setPresentationUrl}
-                    disabled={!editable(stage5)}
-                    type="url"
-                    placeholder="Canva, Google Slides, Drive, PDF compartido..."
-                  />
-
-                  {presentationUrl && (
-                    <a
-                      href={presentationUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        color: "#4338ca",
-                        fontWeight: 700,
-                        width: "fit-content",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <LinkIcon size={16} />
-                      Abrir presentación
-                    </a>
-                  )}
-
-                  <div>
-                    <strong
-                      style={{
-                        display: "block",
-                        marginBottom: 8,
-                      }}
-                    >
-                      7. Evidencia final adicional
+                  {stage5.status === "approved" ? (
+                    <strong style={{ color: "#047857" }}>
+                      ✅ Exposición evaluada · {numeric(stage5.score)}/4
                     </strong>
-
-                    <div
-                      style={{
-                        border: "1px dashed #c7c9d4",
-                        borderRadius: 17,
-                        padding: 18,
-                      }}
-                    >
-                      {finalEvidencePath && (
-                        <div
-                          style={{
-                            background: "#ecfdf5",
-                            color: "#047857",
-                            padding: 12,
-                            borderRadius: 12,
-                            marginBottom: 12,
-                          }}
-                        >
-                          ✅ Evidencia final cargada
-                          {finalEvidenceUrl && (
-                            <>
-                              {" · "}
-                              <a
-                                href={finalEvidenceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                  color: "#4338ca",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Ver evidencia
-                              </a>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      <label
-                        style={{
-                          cursor: editable(stage5)
-                            ? "pointer"
-                            : "not-allowed",
-                        }}
-                      >
-                        <input
-                          hidden
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,application/pdf"
-                          disabled={
-                            !editable(stage5) || uploadingStage === 5
-                          }
-                          onChange={uploadFinalEvidence}
-                        />
-
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            border: "1px solid #d1d5db",
-                            borderRadius: 10,
-                            padding: "10px 14px",
-                          }}
-                        >
-                          <Upload size={17} />
-                          {uploadingStage === 5
-                            ? "Subiendo..."
-                            : finalEvidencePath
-                            ? "Cambiar evidencia"
-                            : "Subir evidencia"}
-                        </span>
-                      </label>
-
-                      <small
-                        style={{
-                          display: "block",
-                          color: "#6b7280",
-                          marginTop: 8,
-                        }}
-                      >
-                        Opcional · PNG, JPG, WebP o PDF · máximo 10 MB.
-                      </small>
-                    </div>
-                  </div>
-
-                  <TextAreaField
-                    label="Comentario final para el profesor"
-                    value={stage5Comment}
-                    onChange={setStage5Comment}
-                    disabled={!editable(stage5)}
-                    placeholder="Comentario opcional sobre la entrega final."
-                    rows={3}
-                  />
-
-                  {editable(stage5) ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 10,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        disabled={
-                          savingStage === 5 || uploadingStage === 5
-                        }
-                      >
-                        <FileText size={17} />
-                        Guardar borrador
-                      </Button>
-
-                      <Button
-                        type="button"
-                        disabled={
-                          savingStage === 5 || uploadingStage === 5
-                        }
-                        onClick={() => saveStage5(true)}
-                      >
-                        <Send size={17} />
-                        Enviar proyecto final
-                      </Button>
-                    </div>
+                  ) : stage5.status === "submitted" ? (
+                    <>
+                      <strong style={{ color: "#92400e" }}>
+                        🟡 Exposición finalizada
+                      </strong>
+                      <p style={{ marginBottom: 0, color: "#6b7280" }}>
+                        Ahora el profesor colocará la nota final y una
+                        observación.
+                      </p>
+                    </>
                   ) : (
-                    <FrozenNotice
-                      work={stage5}
-                      approvedMessage="Etapa 5 aprobada"
-                    />
+                    <p style={{ margin: 0, color: "#475569" }}>
+                      Al pulsar <strong>Modo exposición</strong> y luego
+                      <strong> Iniciar</strong>, comienza el reloj oficial.
+                      Verde = buen ritmo, amarillo = último minuto y rojo =
+                      últimos 30 segundos. Al llegar a 00:00 se envía
+                      automáticamente para evaluación.
+                    </p>
                   )}
-                </form>
+                </div>
               </>
             )}
           </section>
@@ -2978,7 +2508,7 @@ export default function StudentPage() {
             >
               <Award size={38} />
               <h2 style={{ marginBottom: 6 }}>
-                Todas las etapas están aprobadas
+                Proyecto y exposición aprobados
               </h2>
               <p style={{ color: "#6b7280", marginBottom: 0 }}>
                 El diploma todavía no ha sido emitido. El profesor
