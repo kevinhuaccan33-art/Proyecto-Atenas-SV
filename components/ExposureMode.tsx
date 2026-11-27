@@ -53,6 +53,106 @@ type ExposureSection = {
 const TOTAL_SECONDS = 240;
 const INVALID_CANVAS_GROUPS = new Set([14]);
 
+type CuratedGuide = {
+  problem: string;
+  solution: string;
+  ai: string;
+  benefit: string;
+  limitation: string;
+  objective: string;
+};
+
+const CURATED_GUIDES: Record<number, CuratedGuide> = {
+  1: {
+    problem: "En una cafetería, las esperas y las preguntas repetitivas pueden hacer más lenta la atención.",
+    solution: "Scafe responde dudas del menú, muestra opciones y ayuda a realizar pedidos de forma más rápida.",
+    ai: "La IA entiende preguntas del cliente y recomienda opciones según lo que busca.",
+    benefit: "Ayuda a clientes y trabajadores a ahorrar tiempo durante la atención.",
+    limitation: "Necesita información actualizada y no reemplaza la atención humana.",
+    objective: "Mejorar la experiencia del cliente con una atención más rápida y clara.",
+  },
+  2: {
+    problem: "Muchos videojuegos repiten ideas, personajes o mecánicas ya conocidas.",
+    solution: "Innova Game IA ayuda a transformar una idea inicial en propuestas más creativas.",
+    ai: "La IA sugiere personajes, escenarios, historias y mecánicas para inspirar nuevas ideas.",
+    benefit: "Ayuda a los creadores a explorar alternativas antes de desarrollar su videojuego.",
+    limitation: "Las ideas de la IA deben ser revisadas y mejoradas por una persona.",
+    objective: "Impulsar la creatividad y la originalidad al diseñar videojuegos.",
+  },
+  4: {
+    problem: "Muchas personas no tienen oportunidades sencillas para aprender y practicar lengua de señas.",
+    solution: "ManosLab combina aprendizaje, práctica y pruebas para reforzar las señas.",
+    ai: "La IA reconoce señas mediante la cámara y ayuda a comprobar la práctica.",
+    benefit: "Permite practicar de forma interactiva desde distintos lugares.",
+    limitation: "El reconocimiento puede fallar por iluminación, posición de las manos o pocas muestras.",
+    objective: "Facilitar el aprendizaje básico de lengua de señas mediante práctica guiada.",
+  },
+  5: {
+    problem: "Encontrar un objeto perdido puede ser lento cuando los reportes están dispersos.",
+    solution: "C&S registra objetos perdidos y encontrados para buscar posibles coincidencias.",
+    ai: "La IA reconoce objetos en imágenes y compara características para sugerir coincidencias.",
+    benefit: "Puede reducir el tiempo necesario para localizar un objeto perdido.",
+    limitation: "Una coincidencia no garantiza que sea el mismo objeto y debe verificarse.",
+    objective: "Facilitar la recuperación de objetos mediante reconocimiento y comparación inteligente.",
+  },
+  6: {
+    problem: "Una mala organización del tiempo puede dificultar el estudio y reducir el tiempo libre.",
+    solution: "Krono organiza tareas, horarios y momentos de estudio según las prioridades del estudiante.",
+    ai: "La IA propone una planificación y puede generar preguntas breves para reforzar temas.",
+    benefit: "Ayuda a organizar mejor el estudio y equilibrarlo con otras actividades.",
+    limitation: "El horario es una recomendación y debe adaptarse a cambios reales del estudiante.",
+    objective: "Mejorar la organización del estudio y el aprovechamiento del tiempo.",
+  },
+  7: {
+    problem: "Algunos adultos mayores pueden olvidar horarios de medicamentos o actividades importantes.",
+    solution: "Wise Hearts usa a Ada para recordar rutinas, hidratación, citas y medicamentos ya indicados.",
+    ai: "Ada organiza recordatorios y responde dudas básicas usando información previamente registrada.",
+    benefit: "Apoya la rutina del adulto mayor y brinda mayor tranquilidad a familiares o cuidadores.",
+    limitation: "Ada no diagnostica, receta ni cambia medicamentos o dosis.",
+    objective: "Apoyar a los adultos mayores para recordar actividades importantes de su rutina.",
+  },
+  8: {
+    problem: "La contaminación puede afectar ecosistemas, personas y futuras generaciones.",
+    solution: "EcoDetect identifica un tipo de contaminación y muestra una recomendación básica de cuidado.",
+    ai: "La IA analiza una imagen y la clasifica en una categoría ambiental.",
+    benefit: "Ayuda a reconocer problemas ambientales y aprender una acción de cuidado.",
+    limitation: "La clasificación puede equivocarse y no reemplaza una evaluación profesional.",
+    objective: "Promover el cuidado ambiental mediante identificación y orientación sencilla.",
+  },
+  9: {
+    problem: "La basura mal clasificada aumenta la contaminación y dificulta el reciclaje.",
+    solution: "EcoAlerta reconoce residuos y orienta sobre cómo clasificarlos correctamente.",
+    ai: "La IA analiza la imagen del residuo y estima a qué categoría pertenece.",
+    benefit: "Ayuda a aprender cómo separar residuos y fomenta mejores hábitos ambientales.",
+    limitation: "Puede confundirse con objetos parecidos o con imágenes de poca calidad.",
+    objective: "Fomentar el reciclaje y reducir errores al clasificar residuos.",
+  },
+  10: {
+    problem: "Un videojuego puede volverse repetitivo si los enemigos siempre reaccionan de la misma forma.",
+    solution: "El proyecto crea un juego de Roblox con huevos de dinosaurio, bases, sigilo y defensa.",
+    ai: "La lógica inteligente cambia el estado del dragón entre patrullaje, alerta y persecución según lo que hace el jugador.",
+    benefit: "Hace que el juego sea más dinámico y obliga al jugador a tomar decisiones estratégicas.",
+    limitation: "La experiencia depende de reglas programadas, conexión y funcionamiento correcto del juego.",
+    objective: "Crear una experiencia de Roblox más estratégica, dinámica y entretenida.",
+  },
+  11: {
+    problem: "Algunas familias de zonas alejadas pueden tener dificultades para acceder a alimentos.",
+    solution: "Más Allá del Camino organiza campañas, registros y difusión para apoyar donaciones.",
+    ai: "La IA ayuda a crear frases e ideas breves para carteles y campañas de difusión.",
+    benefit: "Facilita la organización y comunicación de iniciativas de ayuda alimentaria.",
+    limitation: "La IA no resuelve la logística ni garantiza recursos o donaciones.",
+    objective: "Apoyar campañas de ayuda alimentaria para familias que lo necesitan.",
+  },
+  12: {
+    problem: "Cada vez es más difícil estimar si un texto fue escrito por una persona o generado con IA.",
+    solution: "LexiScan analiza patrones del texto y muestra una estimación experimental de su origen.",
+    ai: "La IA revisa estructura, vocabulario y regularidad para producir una clasificación aproximada.",
+    benefit: "Sirve como apoyo para analizar textos y hablar sobre autenticidad digital.",
+    limitation: "No puede demostrar con certeza quién escribió un texto y puede equivocarse.",
+    objective: "Explorar cómo los patrones lingüísticos pueden ayudar a analizar el posible origen de un texto.",
+  },
+};
+
 const DEMO_TIPS: Record<number, string> = {
   1: "Haz una consulta real, realiza un pedido y muestra el contador de preparación.",
   2: "Escribe una idea sencilla de videojuego y muestra cómo la herramienta propone personaje, escenario, mecánica y un giro creativo.",
@@ -89,13 +189,14 @@ function buildSections(
   members: string,
   canvas: CanvasContent | null
 ): ExposureSection[] {
-  const validCanvas = canvas && !INVALID_CANVAS_GROUPS.has(groupId);
-  const problem = validCanvas ? compact(canvas.problem) : "";
-  const solution = validCanvas ? compact(canvas.solution) : "";
-  const aiUse = validCanvas ? compact(canvas.ai_use) : "";
-  const beneficiaries = validCanvas ? compact(canvas.beneficiaries, 240) : "";
-  const limitations = validCanvas ? compact(canvas.limitations, 240) : "";
-  const objective = validCanvas ? compact(canvas.objective, 240) : "";
+  const guide = CURATED_GUIDES[groupId] ?? null;
+  const hasValidCanvas =
+    Boolean(canvas) && !INVALID_CANVAS_GROUPS.has(groupId);
+
+  const noInfo = (label: string) =>
+    hasValidCanvas
+      ? "Guía pendiente de revisión para " + label + "."
+      : "Pendiente: completa o actualiza el proyecto para preparar esta guía.";
 
   return [
     {
@@ -104,9 +205,9 @@ function buildSections(
       duration: 20,
       label: "Quiénes somos",
       text: projectName
-        ? "Somos " + (members || "el Grupo " + groupId) + " y nuestro proyecto se llama " + projectName + "."
-        : "Grupo " + groupId + ": define el nombre del proyecto en la Etapa 1.",
-      help: "Di el nombre del proyecto y quiénes integran el equipo. Empieza mirando al público.",
+        ? "Somos " + (members || "el Grupo " + groupId) + " y presentamos " + projectName + "."
+        : "Grupo " + groupId + ": proyecto pendiente de definir.",
+      help: "Solo preséntense y digan el nombre del proyecto. No expliquen todavía todos los detalles.",
       icon: <Users size={30} />,
     },
     {
@@ -114,8 +215,8 @@ function buildSections(
       shortTitle: "Problema",
       duration: 35,
       label: "Qué queremos resolver",
-      text: problem || emptyText("el problema"),
-      help: "Cuenta una situación concreta. Una buena exposición no lee el Canvas: lo explica.",
+      text: guide?.problem || noInfo("el problema"),
+      help: "Explíquenlo con sus propias palabras y, si pueden, den un ejemplo corto.",
       icon: <Target size={30} />,
     },
     {
@@ -123,8 +224,8 @@ function buildSections(
       shortTitle: "Solución",
       duration: 35,
       label: "Qué proponemos",
-      text: solution || emptyText("la solución"),
-      help: "Explica qué hace el proyecto y qué recibe el usuario como resultado.",
+      text: guide?.solution || noInfo("la solución"),
+      help: "Digan qué hace el proyecto en una sola idea. No enumeren todas sus funciones.",
       icon: <Lightbulb size={30} />,
     },
     {
@@ -132,8 +233,8 @@ function buildSections(
       shortTitle: "La IA",
       duration: 35,
       label: "La parte inteligente",
-      text: aiUse || emptyText("el uso de IA"),
-      help: "Nombra claramente qué analiza, reconoce, recomienda, organiza o genera la IA.",
+      text: guide?.ai || noInfo("el uso de IA"),
+      help: "Expliquen qué recibe la IA y qué resultado produce. Eso debe quedar muy claro.",
       icon: <BrainCircuit size={30} />,
     },
     {
@@ -141,8 +242,10 @@ function buildSections(
       shortTitle: "Demo",
       duration: 65,
       label: "Mostrar, no explicar",
-      text: DEMO_TIPS[groupId] || "Muestra una entrada, el procesamiento y un resultado concreto del prototipo.",
-      help: "Haz una sola prueba preparada. El reloj seguirá corriendo dentro de la demostración.",
+      text:
+        DEMO_TIPS[groupId] ||
+        "Muestra una entrada, el procesamiento y un resultado concreto del prototipo.",
+      help: "Hagan una sola prueba preparada. El reloj seguirá corriendo dentro de la demostración.",
       icon: <MonitorPlay size={30} />,
     },
     {
@@ -150,10 +253,10 @@ function buildSections(
       shortTitle: "Impacto",
       duration: 30,
       label: "Impacto real",
-      text:
-        (beneficiaries ? "Beneficia a: " + beneficiaries : emptyText("los beneficiarios")) +
-        (limitations ? " Límite importante: " + limitations : ""),
-      help: "Menciona a quién ayuda y una limitación real. Eso demuestra criterio y comprensión.",
+      text: guide
+        ? "Beneficio: " + guide.benefit + " Límite: " + guide.limitation
+        : noInfo("el beneficio y la limitación"),
+      help: "Mencionen solo un beneficio y una limitación. Eso demuestra que conocen el alcance real del proyecto.",
       icon: <HeartHandshake size={30} />,
     },
     {
@@ -161,10 +264,8 @@ function buildSections(
       shortTitle: "Cierre",
       duration: 20,
       label: "La idea que debe quedar",
-      text: objective
-        ? "Nuestro objetivo es: " + objective
-        : "Cierra con una frase que recuerde el objetivo principal del proyecto.",
-      help: "Termina con una frase corta y clara. No agregues información nueva al final.",
+      text: guide?.objective || noInfo("el objetivo final"),
+      help: "Cierren con esta idea en una frase. No agreguen información nueva.",
       icon: <Flag size={30} />,
     },
   ];
@@ -781,6 +882,29 @@ export function ExposureMode({
           </div>
         </section>
 
+        <div
+          style={{
+            marginTop: 14,
+            borderRadius: 18,
+            padding: "12px 15px",
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            color: "#475569",
+            boxShadow: "0 8px 24px rgba(15,23,42,.05)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 20 }}>🎤</span>
+          <div>
+            <strong style={{ color: accent }}>Guía breve para exponer</strong>
+            <small style={{ display: "block", marginTop: 2, lineHeight: 1.4 }}>
+              Esta pantalla es una guía breve. No la lean completa: expliquen cada idea con sus propias palabras.
+            </small>
+          </div>
+        </div>
+
         <section
           style={{
             marginTop: 18,
@@ -870,7 +994,7 @@ export function ExposureMode({
                 <div
                   style={{
                     maxWidth: 930,
-                    fontSize: "clamp(18px,2vw,25px)",
+                    fontSize: "clamp(17px,1.7vw,22px)",
                     lineHeight: 1.55,
                     color: "#334155",
                     fontWeight: 600,
