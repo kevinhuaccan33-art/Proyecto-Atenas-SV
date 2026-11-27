@@ -22,6 +22,9 @@ type ExposureModeProps = {
   canStart?: boolean;
   disabledMessage?: string;
   onFinished?: () => void | Promise<void>;
+  minimized?: boolean;
+  onOpenDemo?: () => void;
+  onRestore?: () => void;
 };
 
 type CanvasContent = Record<string, unknown>;
@@ -150,6 +153,9 @@ export function ExposureMode({
   canStart = true,
   disabledMessage = "",
   onFinished,
+  minimized = false,
+  onOpenDemo,
+  onRestore,
 }: ExposureModeProps) {
   const [canvas, setCanvas] = useState<CanvasContent | null>(null);
   const [members, setMembers] = useState("");
@@ -158,6 +164,8 @@ export function ExposureMode({
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const finishReportedRef = useRef(false);
+  const officialMode = Boolean(onFinished);
+  const hasStarted = elapsed > 0 || running;
 
   useEffect(() => {
     if (!open) return;
@@ -295,6 +303,111 @@ export function ExposureMode({
 
   if (!open) return null;
 
+
+  if (open && minimized) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: 86,
+          right: 18,
+          zIndex: 100700,
+          width: "min(310px,calc(100vw - 36px))",
+          borderRadius: 22,
+          padding: 14,
+          background: "rgba(255,255,255,.97)",
+          border: "1px solid " + timerTone.border,
+          boxShadow: "0 18px 50px rgba(15,23,42,.22)",
+          backdropFilter: "blur(16px)",
+          fontFamily:
+            'Inter, Aptos, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 17,
+            padding: "12px 14px",
+            background: timerTone.bg,
+            color: timerTone.fg,
+            border: "1px solid " + timerTone.border,
+            textAlign: "center",
+          }}
+        >
+          <small style={{ display: "block", fontWeight: 950, letterSpacing: .7 }}>
+            {officialMode ? "EXPOSICIÓN OFICIAL" : "MODO PRÁCTICA"}
+          </small>
+          <strong
+            style={{
+              display: "block",
+              marginTop: 3,
+              fontSize: 36,
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {mm}:{ss}
+          </strong>
+          <small style={{ display: "block", marginTop: 6, fontWeight: 900 }}>
+            {timerTone.label}
+          </small>
+        </div>
+
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            gap: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onRestore}
+            style={{
+              flex: 1,
+              minHeight: 42,
+              border: 0,
+              borderRadius: 12,
+              background: "linear-gradient(135deg," + accent + "," + accent2 + ")",
+              color: "white",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            ← Volver a la guía
+          </button>
+          {!officialMode && (
+            <button
+              type="button"
+              onClick={() => setRunning((value) => !value)}
+              style={{
+                minHeight: 42,
+                border: "1px solid #cbd5e1",
+                borderRadius: 12,
+                padding: "0 12px",
+                background: "white",
+                fontWeight: 850,
+                cursor: "pointer",
+              }}
+            >
+              {running ? "Pausar" : "Seguir"}
+            </button>
+          )}
+        </div>
+
+        <small
+          style={{
+            display: "block",
+            marginTop: 9,
+            color: "#64748b",
+            lineHeight: 1.35,
+          }}
+        >
+          El reloj sigue corriendo mientras muestras el prototipo.
+        </small>
+      </div>
+    );
+  }
+
   return (
     <div
       role="dialog"
@@ -328,7 +441,9 @@ export function ExposureMode({
         }}
       >
         <div>
-          <strong style={{ display: "block", fontSize: 18 }}>🎤 Modo Exposición</strong>
+          <strong style={{ display: "block", fontSize: 18 }}>
+            🎤 {officialMode ? "Exposición oficial" : "Modo práctica"}
+          </strong>
           <small style={{ color: "#64748b" }}>
             Grupo {groupId} · {resolvedName || "Proyecto sin nombre"}
           </small>
@@ -354,7 +469,12 @@ export function ExposureMode({
           </div>
           <button
             type="button"
-            onClick={() => setRunning((value) => !value)}
+            onClick={() => {
+              if (!canStart) return;
+              if (officialMode && hasStarted) return;
+              setRunning((value) => !value);
+            }}
+            disabled={!canStart || (officialMode && hasStarted)}
             style={{
               border: 0,
               borderRadius: 13,
@@ -363,14 +483,29 @@ export function ExposureMode({
               background: "linear-gradient(135deg," + accent + "," + accent2 + ")",
               color: "white",
               fontWeight: 900,
-              cursor: canStart ? "pointer" : "not-allowed",
-              opacity: canStart ? 1 : .55,
+              cursor:
+                canStart && !(officialMode && hasStarted)
+                  ? "pointer"
+                  : "not-allowed",
+              opacity:
+                canStart && !(officialMode && hasStarted)
+                  ? 1
+                  : .55,
             }}
             title={!canStart ? disabledMessage : undefined}
           >
-            {running ? <Pause size={17} /> : <Play size={17} />}{" "}
-            {running ? "Pausar" : elapsed ? "Continuar" : "Iniciar"}
+            {officialMode && hasStarted ? (
+              <>
+                <Timer size={17} /> En curso
+              </>
+            ) : (
+              <>
+                {running ? <Pause size={17} /> : <Play size={17} />}{" "}
+                {running ? "Pausar" : elapsed ? "Continuar" : "Iniciar"}
+              </>
+            )}
           </button>
+          {!officialMode && (
           <button
             type="button"
             onClick={() => {
@@ -389,9 +524,16 @@ export function ExposureMode({
           >
             <RotateCcw size={17} />
           </button>
+          )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (officialMode && hasStarted) {
+                onOpenDemo?.();
+                return;
+              }
+              onClose();
+            }}
             style={{
               border: 0,
               borderRadius: 13,
@@ -513,6 +655,7 @@ export function ExposureMode({
                   key={section.title}
                   type="button"
                   onClick={() => {
+                    if (officialMode && hasStarted) return;
                     setRunning(false);
                     setElapsed(starts[index]);
                   }}
@@ -523,7 +666,10 @@ export function ExposureMode({
                     borderRadius: 14,
                     padding: "11px 12px",
                     textAlign: "left",
-                    cursor: "pointer",
+                    cursor:
+                      officialMode && hasStarted
+                        ? "default"
+                        : "pointer",
                     fontWeight: index === currentIndex ? 900 : 700,
                   }}
                 >
@@ -578,11 +724,34 @@ export function ExposureMode({
                 <strong>💡 Ayuda para exponer:</strong> {current.help}
               </div>
 
+              {onOpenDemo && (
+                <button
+                  type="button"
+                  onClick={onOpenDemo}
+                  style={{
+                    marginTop: 16,
+                    minHeight: 48,
+                    border: 0,
+                    borderRadius: 14,
+                    padding: "0 18px",
+                    background:
+                      "linear-gradient(135deg," + accent + "," + accent2 + ")",
+                    color: "white",
+                    fontWeight: 950,
+                    cursor: "pointer",
+                    boxShadow: "0 10px 24px " + accent + "30",
+                  }}
+                >
+                  ▶ Abrir demostración · el reloj continuará
+                </button>
+              )}
+
               <div style={{ display: "flex", gap: 10, justifyContent: "space-between", marginTop: 24 }}>
                 <button
                   type="button"
                   disabled={currentIndex === 0}
                   onClick={() => {
+                    if (officialMode && hasStarted) return;
                     setRunning(false);
                     setElapsed(starts[Math.max(0, currentIndex - 1)]);
                   }}
@@ -604,6 +773,7 @@ export function ExposureMode({
                   type="button"
                   disabled={currentIndex === sections.length - 1}
                   onClick={() => {
+                    if (officialMode && hasStarted) return;
                     setRunning(false);
                     setElapsed(
                       currentIndex < sections.length - 1
