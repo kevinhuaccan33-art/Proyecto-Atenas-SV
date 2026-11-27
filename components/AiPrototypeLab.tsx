@@ -2382,6 +2382,9 @@ export function AiPrototypeLab({
         canStart={exposureEnabled}
         disabledMessage={exposureDisabledMessage}
         onFinished={onExposureFinished}
+        backgroundImage={theme.image}
+        tagline={theme.tagline}
+        projectEmoji={theme.emoji}
         minimized={exposureMinimized}
         onOpenDemo={() => {
           setOpen(true);
