@@ -2401,29 +2401,42 @@ export default function StudentPage() {
             </div>
 
             {stage5.status === "locked" ? (
-              <div
-                style={{
-                  padding: 18,
-                  borderRadius: 15,
-                  background: "#f3f4f6",
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                }}
-              >
-                <Lock />
-                <div>
-                  <strong>Exposición bloqueada</strong>
-                  <small
-                    style={{
-                      display: "block",
-                      marginTop: 4,
-                      color: "#6b7280",
-                    }}
-                  >
-                    Primero debe aprobarse el Prototipo IA.
-                  </small>
+              <div style={{ display: "grid", gap: 14 }}>
+                <div
+                  style={{
+                    padding: 18,
+                    borderRadius: 15,
+                    background: "#f3f4f6",
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <Lock />
+                  <div>
+                    <strong>Exposición oficial todavía bloqueada</strong>
+                    <small
+                      style={{
+                        display: "block",
+                        marginTop: 4,
+                        color: "#6b7280",
+                      }}
+                    >
+                      Primero debe aprobarse el Prototipo IA. Mientras tanto
+                      pueden abrir la plantilla y practicar; no se enviará
+                      ninguna nota al profesor.
+                    </small>
+                  </div>
                 </div>
+
+                <AiPrototypeLab
+                  groupId={group.id}
+                  projectName={group.project_name || projectName}
+                  prototypeUrl={prototypeUrl}
+                  showDemoButton={false}
+                  showExposureButton={true}
+                  exposureEnabled={true}
+                />
               </div>
             ) : (
               <>
