@@ -67,7 +67,7 @@ const THEMES: Record<number, Theme> = {
   },
   2: {
     fallbackName: "Innova Game IA",
-    tagline: "Buscador inteligente de mapas",
+    tagline: "Asistente creativo para desarrollar videojuegos",
     emoji: "🎮",
     accent: "#6d28d9",
     accent2: "#2563eb",
@@ -114,8 +114,8 @@ const THEMES: Record<number, Theme> = {
     decorations: ["🎒", "📚", "🧴", "🔑"],
   },
   6: {
-    fallbackName: "StudyQuest IA",
-    tagline: "Organizador inteligente del tiempo",
+    fallbackName: "Krono IA",
+    tagline: "Planificación de estudio y refuerzo inteligente",
     emoji: "🗓️",
     accent: "#6d28d9",
     accent2: "#0891b2",
@@ -126,8 +126,8 @@ const THEMES: Record<number, Theme> = {
     decorations: ["⏰", "📚", "✅", "✏️"],
   },
   7: {
-    fallbackName: "SeniorCare",
-    tagline: "Apoyo inteligente para adultos mayores",
+    fallbackName: "Wise Hearts",
+    tagline: "Ada · recordatorios y acompañamiento para adultos mayores",
     emoji: "💜",
     accent: "#7c3aed",
     accent2: "#e11d48",
@@ -138,20 +138,20 @@ const THEMES: Record<number, Theme> = {
     decorations: ["❤️", "⏰", "💊", "📅"],
   },
   8: {
-    fallbackName: "PetID AI",
-    tagline: "Reconocimiento de mascotas",
-    emoji: "🐾",
+    fallbackName: "EcoDetect",
+    tagline: "Identificación de contaminación y cuidado ambiental",
+    emoji: "🌎",
     accent: "#6d28d9",
     accent2: "#16a34a",
     soft: "#faf5ff",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.32),transparent 25%), radial-gradient(circle at 88% 15%,rgba(192,132,252,.38),transparent 25%), linear-gradient(135deg,#4c1d95,#6d28d9 50%,#7c3aed)",
-    image: "/demo-themes/petvision.png",
-    decorations: ["🐶", "🐱", "🐰", "🐾"],
+    image: "/demo-themes/ecodetect.png",
+    decorations: ["🌎", "🌱", "💨", "💧"],
   },
   9: {
-    fallbackName: "EcoDetect",
-    tagline: "Detección ambiental inteligente",
+    fallbackName: "EcoAlerta",
+    tagline: "Clasificación inteligente de residuos",
     emoji: "♻️",
     accent: "#15803d",
     accent2: "#6d28d9",
@@ -162,8 +162,8 @@ const THEMES: Record<number, Theme> = {
     decorations: ["♻️", "🌱", "🗑️", "🌎"],
   },
   10: {
-    fallbackName: "Videojuego 2D con IA",
-    tagline: "Aventura 2D con decisiones inteligentes",
+    fallbackName: "Creación de Videojuego",
+    tagline: "Roblox · dragón guardián, sigilo y defensa del huevo",
     emoji: "🕹️",
     accent: "#6d28d9",
     accent2: "#f59e0b",
@@ -174,28 +174,28 @@ const THEMES: Record<number, Theme> = {
     decorations: ["🪙", "⚔️", "🏰", "⭐"],
   },
   11: {
-    fallbackName: "FruitVision AI",
-    tagline: "Reconocimiento de frutas",
-    emoji: "🍎",
+    fallbackName: "Más Allá del Camino",
+    tagline: "Campañas y organización para ayuda alimentaria",
+    emoji: "🤝",
     accent: "#16a34a",
     accent2: "#dc2626",
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(248,113,113,.42),transparent 26%), radial-gradient(circle at 90% 16%,rgba(250,204,21,.38),transparent 25%), linear-gradient(135deg,#166534,#16a34a 48%,#65a30d)",
-    image: "/demo-themes/frutiai.png",
-    decorations: ["🍎", "🍌", "🍊", "🍓"],
+    image: "/demo-themes/generic.png",
+    decorations: ["🤝", "📦", "📍", "❤️"],
   },
   12: {
-    fallbackName: "NutriAI",
-    tagline: "Clasificación visual de alimentos",
-    emoji: "🥗",
+    fallbackName: "LexiScan AI",
+    tagline: "Análisis experimental de patrones de texto",
+    emoji: "📝",
     accent: "#16a34a",
     accent2: "#f59e0b",
     soft: "#f0fdf4",
     background:
       "radial-gradient(circle at 10% 18%,rgba(74,222,128,.38),transparent 25%), radial-gradient(circle at 88% 16%,rgba(251,191,36,.32),transparent 25%), linear-gradient(135deg,#14532d,#15803d 50%,#65a30d)",
-    image: "/demo-themes/nutriai.png",
-    decorations: ["🥗", "🥕", "🍎", "🥦"],
+    image: "/demo-themes/generic.png",
+    decorations: ["📝", "🔎", "🧠", "📊"],
   },
 };
 
@@ -563,12 +563,10 @@ function VisionDemo({ groupId, projectName, prototypeUrl, theme }: Props & { the
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const groupHints: Record<number, string[]> = {
-    4: ["Hola", "Gracias", "Por favor", "Ninguna"],
-    5: ["Botella", "Mochila", "Cuaderno", "Otro"],
-    8: ["Perro", "Gato", "Conejo"],
-    9: ["Plástico", "Papel", "Lata", "Orgánico"],
-    11: ["Manzana", "Plátano", "Naranja"],
-    12: ["Fruta", "Verdura", "Snack", "Otro"],
+    4: ["A", "B", "C", "Hola"],
+    5: ["Mochila", "Celular", "Llaves", "Cuaderno", "Botella"],
+    8: ["Contaminación del suelo", "Contaminación del aire", "Contaminación del agua", "Sin contaminación"],
+    9: ["Plástico", "Papel/Cartón", "Metal", "Vidrio", "No reciclable"],
   };
 
   useEffect(() => {
@@ -2001,6 +1999,7 @@ export function AiPrototypeLab({ groupId, projectName, prototypeUrl }: Props) {
   };
 
   const [open, setOpen] = useState(false);
+  const [exposureOpen, setExposureOpen] = useState(false);
   const [adminScreen, setAdminScreen] = useState(false);
   const displayName = projectName?.trim() || theme.fallbackName;
   const heroRight = [4, 8, 11, 12].includes(groupId);
