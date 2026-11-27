@@ -40,7 +40,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { getSupabase } from "@/lib/supabase-browser";
-import { AiPrototypeLab } from "@/components/AiPrototypeLab";
+import { PrototypeReviewPanel } from "@/components/PrototypeReviewPanel";
 
 type StageStatus =
   | "locked"
@@ -89,6 +89,7 @@ type AtenasGroup = GroupRow & {
   pendingReviews: number;
   corrections: number;
   approvedStages: number;
+  approvedMilestones: number;
   currentStage: number;
   stageWorks: StageWork[];
 };
@@ -177,6 +178,23 @@ function buildGroup(
     (work) => work.status === "approved"
   ).length;
 
+  const stage1Approved =
+    stageWorks.find((work) => work.stage_id === 1)?.status === "approved";
+  const stage2Approved =
+    stageWorks.find((work) => work.stage_id === 2)?.status === "approved";
+  const prototypeApproved =
+    stageWorks.find((work) => work.stage_id === 3)?.status === "approved" &&
+    stageWorks.find((work) => work.stage_id === 4)?.status === "approved";
+  const exposureApproved =
+    stageWorks.find((work) => work.stage_id === 5)?.status === "approved";
+
+  const approvedMilestones = [
+    stage1Approved,
+    stage2Approved,
+    prototypeApproved,
+    exposureApproved,
+  ].filter(Boolean).length;
+
   const reachedStages = stageWorks.filter(
     (work) => work.status !== "locked"
   );
@@ -192,6 +210,7 @@ function buildGroup(
     pendingReviews,
     corrections,
     approvedStages,
+    approvedMilestones,
     currentStage,
     stageWorks,
   };
@@ -232,11 +251,16 @@ function GroupCard({
   const colors =
     CARD_COLORS[(group.id - 1) % CARD_COLORS.length];
 
+  const visibleStageId =
+    group.currentStage === 4 ? 3 : group.currentStage;
   const stage = stages.find(
-    (item) => item.id === group.currentStage
+    (item) => item.id === visibleStageId
   );
 
-  let stageLabel = stage?.name ?? "Etapa 1";
+  let stageLabel =
+    group.currentStage === 4
+      ? "Prototipo IA"
+      : stage?.name ?? "Etapa 1";
 
   if (!group.active) stageLabel = "Deshabilitado";
   if (group.pendingReviews > 0)
@@ -322,7 +346,7 @@ function GroupCard({
           color: "#6b7280",
         }}
       >
-        <span>✅ {group.approvedStages}/5</span>
+        <span>✅ {group.approvedMilestones}/4 hitos</span>
         <span>🟡 {group.pendingReviews} revisión</span>
         <span>🔄 {group.corrections} corrección</span>
       </div>
@@ -2036,6 +2060,44 @@ export default function HomePage() {
       );
     }
 
+    if (stage.id === 5 && c.exposure_completed) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+            background: "white",
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 15,
+          }}
+        >
+          <strong style={{ color: "#7c3aed" }}>
+            🎤 Exposición completada
+          </strong>
+          <Field
+            label="Tiempo oficial"
+            value={
+              Number(c.exposure_duration_seconds ?? 240) === 240
+                ? "4:00 minutos"
+                : String(c.exposure_duration_seconds ?? 240) + " s"
+            }
+          />
+          <Field
+            label="Finalizó"
+            value={
+              c.exposure_completed_at
+                ? formatDate(String(c.exposure_completed_at))
+                : "Registrado"
+            }
+          />
+          <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>
+            La nota final y la observación se colocan en esta Etapa 5.
+          </p>
+        </div>
+      );
+    }
+
     if (stage.id === 5) {
       return (
         <div
@@ -2252,7 +2314,7 @@ export default function HomePage() {
           <span>💡</span>
           <strong>Evaluación</strong>
           <p>
-            Cada etapa vale hasta 4 puntos. Total: 20.
+            Identidad 4 + Canvas 4 + Prototipo IA 8 + Exposición final 4 = 20.
           </p>
         </div>
 
@@ -2979,7 +3041,7 @@ export default function HomePage() {
               <div>
                 <h2>Grupos del curso</h2>
                 <p>
-                  Abre un grupo para revisar sus cinco etapas.
+                  Abre un grupo para revisar Identidad, Canvas, Prototipo IA y Exposición final.
                 </p>
               </div>
 
@@ -3273,18 +3335,8 @@ export default function HomePage() {
               />
             </div>
 
-            <AiPrototypeLab
-              groupId={activeGroup.id}
-              projectName={activeGroup.project_name}
-              prototypeUrl={String(
-                activeGroup.stageWorks.find(
-                  (work) => work.stage_id === 4
-                )?.content?.prototype_url ?? ""
-              )}
-            />
-
             <div className="stage-list">
-              {stages.map((stage) => {
+              {stages.filter((stage) => stage.id !== 4).map((stage) => {
                 const work =
                   activeGroup.stageWorks.find(
                     (item) =>
@@ -3292,6 +3344,29 @@ export default function HomePage() {
                   );
 
                 if (!work) return null;
+
+                if (stage.id === 3) {
+                  const internalStage4 =
+                    activeGroup.stageWorks.find(
+                      (item) => item.stage_id === 4
+                    );
+
+                  if (!internalStage4) return null;
+
+                  return (
+                    <PrototypeReviewPanel
+                      key="prototype-combined"
+                      groupId={activeGroup.id}
+                      projectName={activeGroup.project_name}
+                      prototypeUrl={String(
+                        internalStage4.content?.prototype_url ?? ""
+                      )}
+                      stage3={work}
+                      stage4={internalStage4}
+                      onChanged={() => loadDashboard(false)}
+                    />
+                  );
+                }
 
                 const info =
                   STATUS_INFO[work.status];
