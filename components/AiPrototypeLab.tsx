@@ -20,7 +20,15 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { getSupabase } from "@/lib/supabase-browser";\nimport { ExposureMode } from "@/components/ExposureMode";\nimport {\n  CanvasAlignedExtras,\n  DragonRobloxDemo,\n  FoodAidDemo,\n  InnovaCreativeDemo,\n  LexiScanDemo,\n} from "@/components/V8CanvasDemos";
+import { getSupabase } from "@/lib/supabase-browser";
+import { ExposureMode } from "@/components/ExposureMode";
+import {
+  CanvasAlignedExtras,
+  DragonRobloxDemo,
+  FoodAidDemo,
+  InnovaCreativeDemo,
+  LexiScanDemo,
+} from "@/components/V8CanvasDemos";
 
 type Props = {
   groupId: number;

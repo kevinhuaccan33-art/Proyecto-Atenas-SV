@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { BrainCircuit, Sparkles } from "lucide-react";
 import { getSupabase } from "@/lib/supabase-browser";
 
@@ -17,7 +17,7 @@ type DemoProps = {
   theme: DemoTheme;
 };
 
-const field: CSSProperties = {
+const field: React.CSSProperties = {
   width: "100%",
   minHeight: 46,
   border: "1px solid #cbd5e1",
@@ -27,7 +27,7 @@ const field: CSSProperties = {
   color: "#172033",
 };
 
-const button: CSSProperties = {
+const button: React.CSSProperties = {
   minHeight: 46,
   border: 0,
   borderRadius: 13,
@@ -41,8 +41,8 @@ function Card({
   children,
   style,
 }: {
-  children: ReactNode;
-  style?: CSSProperties;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
